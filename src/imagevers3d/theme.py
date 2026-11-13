@@ -399,6 +399,12 @@ def _palette(t: Theme) -> QPalette:
     return palette
 
 
+def repaint_later(widget: QWidget) -> None:
+    """Demande un repeignage. `QWidget.update` est appelée sur la classe de base : les vues (QListView, QTableView...) y
+    superposent une surcharge `update(index)` qui, avec PySide6 6.9, refuse l'appel sans argument."""
+    QWidget.update(widget)
+
+
 def apply_theme(app: QApplication, mode: str = "dark", scale: float = 1.0) -> Theme:
     """Applique couleurs, police et feuille de style ; prévient les widgets personnalisés. `mode` : dark, light ou system."""
     global _font_family
@@ -412,7 +418,7 @@ def apply_theme(app: QApplication, mode: str = "dark", scale: float = 1.0) -> Th
     app.setStyleSheet(build_qss(t))
     bus.changed.emit()
     for widget in app.allWidgets():
-        widget.update()
+        repaint_later(widget)
     return t
 
 

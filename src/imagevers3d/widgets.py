@@ -63,7 +63,7 @@ def repolish(widget: QWidget) -> None:
     style = widget.style()
     style.unpolish(widget)
     style.polish(widget)
-    widget.update()
+    QWidget.update(widget)  # sur la classe de base : voir theme.repaint_later
 
 
 def set_prop(widget: QWidget, name: str, value: Any) -> None:

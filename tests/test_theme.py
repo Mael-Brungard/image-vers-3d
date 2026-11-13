@@ -11,7 +11,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtGui import QFontDatabase  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
 
 from imagevers3d import icons, theme, widgets  # noqa: E402
 from imagevers3d.theme import TOKENS, Motion, Theme, build_qss, contrast  # noqa: E402
@@ -26,6 +26,19 @@ def app():
     instance = QApplication.instance() or QApplication([])
     theme.apply_theme(instance, "dark", 1.0)
     return instance
+
+
+@pytest.fixture(scope="module")
+def stage(app):
+    """Support visible auquel on accroche les widgets qui s'animent. Un widget SANS parent qu'on lâche pendant son
+    animation est détruit par Python au milieu d'un signal de sa propre animation : Qt plante au tour suivant de la boucle
+    d'événements (dans l'application, tout widget a un parent, le cas n'existe pas)."""
+    holder = QWidget()
+    holder.resize(700, 300)
+    holder.show()
+    yield holder
+    holder.close()
+    holder.deleteLater()
 
 
 @pytest.fixture(autouse=True)
@@ -209,8 +222,8 @@ def test_icon_takes_the_requested_color(app):
 
 
 # ---- composants -----------------------------------------------------------------------------------------------------
-def test_switch_toggles_and_exposes_name(app):
-    switch = widgets.Switch("Retirer le fond")
+def test_switch_toggles_and_exposes_name(stage):
+    switch = widgets.Switch("Retirer le fond", stage)
     switch.show()
     assert switch.accessibleName() == "Retirer le fond" and not switch.isChecked()
     switch.click()
@@ -218,8 +231,8 @@ def test_switch_toggles_and_exposes_name(app):
     assert switch.sizeHint().height() >= 44
 
 
-def test_segmented_selection_and_api(app):
-    seg = widgets.Segmented()
+def test_segmented_selection_and_api(stage):
+    seg = widgets.Segmented(stage)
     for label in ("Rapide", "Standard", "Détaillé"):
         seg.addItem(f"{label} (info)", label.lower(), label=label)
     seg.show()
@@ -235,10 +248,10 @@ def test_segmented_selection_and_api(app):
     assert seg.count() == 0 and seg.currentIndex() == -1
 
 
-def test_segmented_keyboard_skips_disabled_items(app):
+def test_segmented_keyboard_skips_disabled_items(stage):
     from PySide6.QtTest import QTest
 
-    seg = widgets.Segmented()
+    seg = widgets.Segmented(stage)
     for label in ("A", "B", "C"):
         seg.addItem(label)
     seg.setItemEnabled(1, False)
@@ -252,11 +265,11 @@ def test_segmented_keyboard_skips_disabled_items(app):
     assert seg.currentIndex() == 2
 
 
-def test_segmented_click_ignores_disabled_item(app):
+def test_segmented_click_ignores_disabled_item(stage):
     from PySide6.QtCore import QPoint
     from PySide6.QtTest import QTest
 
-    seg = widgets.Segmented()
+    seg = widgets.Segmented(stage)
     seg.resize(300, 44)
     for label in ("A", "B", "C"):
         seg.addItem(label)
@@ -359,3 +372,18 @@ def test_settings_popover_reports_choices(app):
     menu.seg_scale.setCurrentIndex(2)
     menu.sw_motion.setChecked(True)
     assert events == [("theme", "light"), ("scale", 1.3), ("motion", True)]
+
+
+def test_theme_applies_with_item_views_alive(app):
+    """Régression CI (PySide6 6.9) : `QListView.update()` sans argument est refusée, alors que tout widget doit être repeint."""
+    from PySide6.QtWidgets import QComboBox, QListView, QTableView, QTreeView
+
+    views = [QListView(), QTableView(), QTreeView()]
+    combo = QComboBox()
+    combo.addItems(["a", "b"])
+    combo.showPopup()  # crée la vue interne du menu déroulant
+    theme.apply_theme(app, "light", 1.0)
+    theme.apply_theme(app, "dark", 1.0)
+    for view in views:
+        widgets.repolish(view)
+    combo.hidePopup()
