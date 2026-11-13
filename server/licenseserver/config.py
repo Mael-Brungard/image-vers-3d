@@ -84,11 +84,11 @@ class Config:
                 problems.append("I3D_SIGNING_KEY n'est pas du base64 valide.")
             else:
                 if len(seed) != 32:
-                    problems.append("I3D_SIGNING_KEY doit contenir 32 octets (générer avec : python -m licenseserver.admin genkey).")
+                    problems.append("I3D_SIGNING_KEY doit contenir 32 octets (générer avec : python tools/genkey.py, depuis le dépôt).")
         elif dev:
             seed = _dev_signing_seed(db_path)
         else:
-            problems.append("I3D_SIGNING_KEY est obligatoire (python -m licenseserver.admin genkey).")
+            problems.append("I3D_SIGNING_KEY est obligatoire (python tools/genkey.py, depuis le dépôt).")
 
         master = get("I3D_MASTER_SECRET").encode("utf-8")
         if not master and dev:

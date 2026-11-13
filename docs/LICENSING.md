@@ -153,10 +153,10 @@ compilée** : sur une version vendue, ils sont ignorés (sinon, il suffirait de 
 
 1. **Générer la clé de signature** (sur ta machine, hors dépôt) :
    ```
-   pip install -e ".[server]"
-   python -m licenseserver.admin genkey
+   python -m pip install cryptography
+   python tools/genkey.py
    ```
-   Elle affiche une clé **privée** et une clé **publique**. Range la privée dans un gestionnaire de mots de passe (sans elle,
+   Le script affiche une clé **privée** et une clé **publique**, plus la valeur exacte de la variable `I3D_LICENSE_PUBKEYS`. Range la privée dans un gestionnaire de mots de passe (sans elle,
    plus aucune licence ne peut être émise) ; **ne la commite jamais**, ne l'envoie jamais à personne.
 2. **Déployer le serveur** avec la clé privée (`I3D_SIGNING_KEY`) : [SERVER.md](SERVER.md).
 3. **Renseigner les variables du dépôt GitHub** (Settings → Secrets and variables → Actions → onglet *Variables*, ce ne sont
@@ -177,7 +177,7 @@ relancer, libérer, réactiver, tester un remboursement.
 
 ## Changer de clé de signature
 
-Le champ `kid` permet une transition sans casser les licences déjà vendues : générer une seconde paire (`genkey`), publier une
+Le champ `kid` permet une transition sans casser les licences déjà vendues : générer une seconde paire (`python tools/genkey.py`), publier une
 nouvelle version dont `I3D_LICENSE_PUBKEYS` contient **les deux** clés (`k1=...,k2=...`), puis passer le serveur sur la nouvelle
 (`I3D_SIGNING_KEY` et `I3D_SIGNING_KID=k2`). Les jetons `k1` déjà émis restent valables tant que les versions du logiciel
 connaissent `k1`. Ne retire jamais une clé publique encore utilisée par des clients.
@@ -220,7 +220,7 @@ Choisies par le propriétaire, avec leurs conséquences :
 | Pas de mot de passe | espace client par code à 8 chiffres reçu par e-mail ; pas de mots de passe à stocker ni à protéger |
 
 Si la clé de licence d'un client est publiée (« leak »), l'unique recours est le blocage des **nouvelles** activations
-(`python -m licenseserver.admin revoke`) et l'émission d'une nouvelle licence pour le client légitime.
+(commande `revoke` de l'administration, voir [SERVER.md](SERVER.md#administration-ligne-de-commande)) et l'émission d'une nouvelle licence pour le client légitime.
 
 ## Durcissements possibles
 

@@ -41,8 +41,10 @@ def cmd_genkey(_args, _service=None, out=print) -> int:
     out("Clé PRIVÉE (à mettre dans I3D_SIGNING_KEY sur le serveur, à ne JAMAIS commiter ni envoyer) :")
     out("  " + base64.b64encode(seed).decode("ascii"))
     out("")
-    out("Clé PUBLIQUE (variable de dépôt GitHub I3D_LICENSE_PUBKEYS, au format k1=<cette clé> ; voir docs/LICENSING.md) :")
+    out("Clé PUBLIQUE (publique : elle est écrite dans le logiciel) :")
     out("  " + signer.public_key_b64)
+    out("")
+    out("Valeur de la variable de dépôt GitHub I3D_LICENSE_PUBKEYS (voir docs/LICENSING.md) : k1=" + signer.public_key_b64)
     out("")
     out("Sauvegarde la clé privée dans un gestionnaire de mots de passe : sans elle, aucune nouvelle licence ne peut être émise.")
     return 0

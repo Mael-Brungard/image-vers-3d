@@ -24,8 +24,12 @@ Le choix de l'hébergeur, du service d'e-mail et leurs tarifs sont les tiens : l
 
 ```
 pip install -e ".[server]"
+cd server
 I3D_ENV=dev python -m licenseserver          # http://127.0.0.1:8000
 ```
+
+(`licenseserver` vit dans le dossier `server/` : les commandes `python -m licenseserver…` se lancent depuis ce dossier, ou
+dans le conteneur Docker.)
 
 Le mode `dev` utilise une clé de signature jetable (écrite à côté de la base), un secret maître de développement et **affiche les
 e-mails dans la console** (les codes de connexion s'y lisent). Il est refusé en production. Création d'une licence de test :
@@ -54,7 +58,7 @@ lis le message avec `docker compose -f server/docker-compose.yml logs licences`.
 | Variable | Rôle |
 |---|---|
 | `I3D_DOMAIN`, `I3D_BASE_URL` | nom de domaine et adresse publique (`https://licence.ton-domaine.fr`) |
-| `I3D_SIGNING_KEY` | clé **privée** de signature (`python -m licenseserver.admin genkey`) |
+| `I3D_SIGNING_KEY` | clé **privée** de signature (`python tools/genkey.py`, depuis la racine du dépôt) |
 | `I3D_SIGNING_KID` | identifiant de cette clé (`k1`) ; voir [le changement de clé](LICENSING.md#changer-de-clé-de-signature) |
 | `I3D_MASTER_SECRET` | secret maître (32 caractères aléatoires au moins) : en dérivent les clés de licence affichées, l'empreinte de recherche, le hachage des adresses IP et des codes |
 | `STRIPE_WEBHOOK_SECRET` | secret de signature du webhook (`whsec_…`) ; vide = le webhook répond 503 et refuse tout |

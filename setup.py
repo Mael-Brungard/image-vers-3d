@@ -51,7 +51,7 @@ def release_values() -> tuple[dict[str, str], str, str]:
         else:
             keys[kid] = encoded
     if not keys:
-        problems.append("I3D_LICENSE_PUBKEYS est vide (python -m licenseserver.admin genkey fournit la clé publique)")
+        problems.append("I3D_LICENSE_PUBKEYS est vide (python tools/genkey.py fournit la clé publique ; voir docs/LICENSING.md)")
     url = os.environ.get("I3D_LICENSE_URL", "").strip().rstrip("/")
     if not url.startswith("https://"):
         problems.append("I3D_LICENSE_URL doit commencer par https://")

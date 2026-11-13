@@ -115,3 +115,22 @@ def test_dev_mode_generates_a_throwaway_signing_key(tmp_path):
 def test_derived_secrets_are_distinct_per_purpose(tmp_path):
     config = Config.from_env(production_env(tmp_path))
     assert len({config.derive(label) for label in ("license-key", "key-lookup", "otp", "ip")}) == 4
+
+
+def test_genkey_tool_runs_from_anywhere_and_gives_the_exact_repository_variable(tmp_path):
+    """`python tools/genkey.py` : le chemin que suit le propriétaire (docs/LICENSING.md) ; ne doit dépendre que de `cryptography`."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[2] / "tools" / "genkey.py"
+    runs = [subprocess.run([sys.executable, "-I", str(script)], cwd=tmp_path, capture_output=True, text=True) for _ in range(2)]
+    pairs = []
+    for result in runs:
+        assert result.returncode == 0, result.stderr
+        private, public = re.findall(r"^  (\S+)$", result.stdout, re.M)
+        assert Signer(base64.b64decode(private), "k1").public_key_b64 == public
+        assert f"I3D_LICENSE_PUBKEYS (voir docs/LICENSING.md) : k1={public}" in result.stdout
+        assert len(base64.b64decode(public)) == 32
+        pairs.append(private)
+    assert pairs[0] != pairs[1], "chaque appel génère une nouvelle paire"
