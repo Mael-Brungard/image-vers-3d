@@ -1,0 +1,11 @@
+Image vers 3D - Copyright (c) 2026 Mael Brungard. Tous droits reserves.
+
+PROJET DE LICENCE : texte provisoire, a faire relire par un juriste avant toute diffusion.
+
+Ce depot est prive. Le code source de "Image vers 3D" (dossiers src/, scripts/, tests/, packaging/ et fichiers de
+documentation de ce depot) est la propriete exclusive de son auteur. Aucune licence d'utilisation, de copie, de
+modification ou de redistribution n'est accordee, sauf accord ecrit de l'auteur, ou par le contrat de licence
+utilisateur final (packaging/windows/EULA.fr.txt) pour les copies du logiciel vendues par l'auteur.
+
+Les composants tiers qui accompagnent le logiciel restent soumis a leurs propres licences : voir
+THIRD_PARTY_NOTICES.md. Rien dans ce fichier ne restreint les droits qu'elles accordent.

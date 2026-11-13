@@ -1,0 +1,23 @@
+# Dépendances du logiciel (hors PyTorch, installé à part depuis l'index CUDA choisi par l'installateur).
+# Les versions de TripoSR (TripoSR/requirements.txt au commit épinglé) sont reprises quand elles tiennent,
+# sauf : torchmcubes (remplacé par scikit-image, voir mcubes_fallback.py), gradio (inutile),
+# imageio[ffmpeg] (binaire ffmpeg sous GPL : on prend imageio seul).
+omegaconf==2.3.0
+einops==0.7.0
+transformers==4.35.0
+huggingface-hub<1
+trimesh>=4.0.5,<5
+imageio
+xatlas==0.0.9
+moderngl==5.10.0
+pillow>=10.1,<12
+numpy<2
+scipy
+scikit-image
+fast-simplification
+rembg
+onnxruntime
+PySide6>=6.6,<6.10
+pyqtgraph
+PyOpenGL
+tqdm

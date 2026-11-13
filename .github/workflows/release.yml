@@ -1,0 +1,182 @@
+name: Release
+
+# Construit l'installateur Windows, le teste (installation silencieuse + désinstallation) et, pour un tag « v* »,
+# le dépose dans une release en brouillon. Pour essayer sans publier : « Run workflow » depuis l'onglet Actions.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: "Lancer aussi une vraie génération 3D sur processeur (télécharge environ 2 Go de modèles)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    name: Installateur Windows
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      INSTALL_DIR: C:\i3d
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Déterminer la version
+        id: version
+        shell: bash
+        run: |
+          project_version="$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag_version="${GITHUB_REF_NAME#v}"
+            if [[ "$tag_version" != "$project_version" ]]; then
+              echo "::error::Le tag $GITHUB_REF_NAME ne correspond pas à la version de pyproject.toml ($project_version)."
+              exit 1
+            fi
+          fi
+          echo "version=$project_version" >> "$GITHUB_OUTPUT"
+          echo "Version : $project_version"
+
+      - name: Vérifier la configuration de licence
+        shell: bash
+        env:
+          I3D_LICENSE_PUBKEYS: ${{ vars.I3D_LICENSE_PUBKEYS }}
+          I3D_LICENSE_URL: ${{ vars.I3D_LICENSE_URL }}
+        run: |
+          if [ -z "$I3D_LICENSE_PUBKEYS" ] || [ -z "$I3D_LICENSE_URL" ]; then
+            echo "::error::Variables du dépôt manquantes : I3D_LICENSE_PUBKEYS (clé publique, jamais la clé privée) et I3D_LICENSE_URL. Voir docs/LICENSING.md, « Construire une version »."
+            exit 1
+          fi
+
+      - name: Construire le logiciel (wheel, modules de licence compilés)
+        shell: bash
+        env:
+          I3D_COMPILE_LICENSE: "1"
+          I3D_LICENSE_PUBKEYS: ${{ vars.I3D_LICENSE_PUBKEYS }}
+          I3D_LICENSE_URL: ${{ vars.I3D_LICENSE_URL }}
+          I3D_BUY_URL: ${{ vars.I3D_BUY_URL }}
+        run: |
+          python -m pip install build
+          python -m build --wheel
+          ls -la dist
+
+      - name: Préparer le dossier de l'installateur
+        shell: bash
+        run: |
+          wheel="$(ls dist/imagevers3d-*.whl)"
+          python packaging/build_stage.py --wheel "$wheel" --import-check
+
+      - name: Compiler l'installateur (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+          }
+          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" packaging\windows\ImageVers3D.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC a échoué (code $LASTEXITCODE)" }
+          Get-ChildItem build\installer
+
+      - name: Tester l'installation silencieuse (PyTorch sur processeur)
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem build\installer\ImageVers3D-Setup-*.exe).FullName
+          $installArgs = @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/DIR=$env:INSTALL_DIR", "/TORCH=cpu", "/LOG=$env:RUNNER_TEMP\setup-inno.log")
+          $process = Start-Process -FilePath $installer -ArgumentList $installArgs -Wait -PassThru
+          Write-Host "Code de sortie de l'installateur : $($process.ExitCode)"
+          Write-Host "::group::Journal des composants (logs\setup_runtime.log)"
+          if (Test-Path "$env:INSTALL_DIR\logs\setup_runtime.log") { Get-Content "$env:INSTALL_DIR\logs\setup_runtime.log" }
+          Write-Host "::endgroup::"
+          if ($process.ExitCode -ne 0) { throw "L'installateur a échoué" }
+          if (-not (Test-Path "$env:INSTALL_DIR\runtime\ready.txt")) { throw "runtime\ready.txt est absent : l'installation des composants a échoué" }
+
+      - name: Vérifier l'installation (diagnostic, interface, raccourcis)
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $python = "$env:INSTALL_DIR\runtime\main\Scripts\python.exe"
+          & $python -m imagevers3d.diagnostic
+          if ($LASTEXITCODE -ne 0) { throw "Le diagnostic signale des problèmes" }
+          & $python -c "from imagevers3d import studio, __version__; print('interface importée, version', __version__)"
+          if ($LASTEXITCODE -ne 0) { throw "L'interface ne s'importe pas" }
+          $menu = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Image vers 3D"
+          Get-ChildItem $menu
+          foreach ($name in @("Image vers 3D.lnk", "Diagnostic.lnk")) {
+            if (-not (Test-Path "$menu\$name")) { throw "Raccourci manquant : $name" }
+          }
+
+      - name: Génération 3D complète sur processeur (facultatif)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.e2e }}
+        shell: pwsh
+        run: |
+          $python = "$env:INSTALL_DIR\runtime\main\Scripts\python.exe"
+          # Le logiciel installé est la version commerciale : sa licence ne se contourne pas, y compris ici. Pour ce test seulement,
+          # on le remplace par une wheel NON compilée (mêmes sources) qui accepte la licence de développement de tools/dev_license.py.
+          python -m pip install build cryptography
+          python -m build --wheel --outdir dist-dev
+          & "$env:INSTALL_DIR\bin\uv.exe" pip install --python $python --no-deps --reinstall-package imagevers3d (Get-ChildItem dist-dev\imagevers3d-*-py3-none-any.whl).FullName
+          if ($LASTEXITCODE -ne 0) { throw "Installation de la wheel de test impossible" }
+          python tools\dev_license.py --data-dir "$env:RUNNER_TEMP\i3d_data" | ForEach-Object { $name, $value = $_ -split "=", 2; Set-Item "env:$name" $value }
+          & $python -m imagevers3d.image_to_3d tests\data\sample.png --output-dir "$env:RUNNER_TEMP\sortie" --device cpu --mc-resolution 96
+          if ($LASTEXITCODE -ne 0) { throw "La génération a échoué" }
+          $glb = Get-ChildItem "$env:RUNNER_TEMP\sortie" -Recurse -Filter *.glb | Select-Object -First 1
+          if (-not $glb) { throw "Aucun fichier .glb produit" }
+          & $python -c "import sys, trimesh; s = trimesh.load(sys.argv[1]); print(s); assert len(s.geometry) > 0" $glb.FullName
+          if ($LASTEXITCODE -ne 0) { throw "Le fichier .glb n'est pas lisible" }
+
+      - name: Rapport des licences des composants installés
+        shell: pwsh
+        run: |
+          & "$env:INSTALL_DIR\runtime\main\Scripts\python.exe" scripts\licences_report.py
+          Copy-Item licences\licences_main.txt build\installer\licences-composants.txt
+
+      - name: Tester la désinstallation silencieuse
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath "$env:INSTALL_DIR\unins000.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "La désinstallation a échoué (code $($process.ExitCode))" }
+          if (Test-Path "$env:INSTALL_DIR\runtime") { throw "Le dossier runtime existe encore après la désinstallation" }
+
+      - name: Sommes de contrôle
+        shell: pwsh
+        run: |
+          Set-Location build\installer
+          Get-ChildItem ImageVers3D-Setup-*.exe | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          } | Set-Content -Encoding ascii SHA256SUMS.txt
+          Get-Content SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ImageVers3D-installateur-${{ steps.version.outputs.version }}
+          path: build/installer/*
+          if-no-files-found: error
+
+      - name: Journaux d'installation (en cas d'échec)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journaux-installation
+          path: |
+            ${{ runner.temp }}/setup-inno.log
+            C:/i3d/logs/*.log
+          if-no-files-found: ignore
+
+      - name: Publier en brouillon sur la release GitHub
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --draft --generate-notes \
+            --title "Image vers 3D ${{ steps.version.outputs.version }}" \
+            build/installer/ImageVers3D-Setup-*.exe build/installer/SHA256SUMS.txt build/installer/licences-composants.txt

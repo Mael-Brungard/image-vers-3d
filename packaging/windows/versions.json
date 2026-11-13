@@ -1,0 +1,20 @@
+{
+  "python": "3.11",
+  "uv": {
+    "version": "0.11.32",
+    "url": "https://github.com/astral-sh/uv/releases/download/{version}/uv-x86_64-pc-windows-msvc.zip",
+    "sha256": "acfde570451cfdb8689fa159a138ee805ba4e241c466432750302c86254b0984"
+  },
+  "torch": {
+    "version": "2.8.0",
+    "index_cuda": "https://download.pytorch.org/whl/cu128",
+    "index_cpu": "https://download.pytorch.org/whl/cpu"
+  },
+  "vendor": {
+    "TripoSR": {
+      "repo": "https://github.com/VAST-AI-Research/TripoSR.git",
+      "commit": "107cefdc244c39106fa830359024f6a2f1c78871",
+      "keep": ["tsr", "LICENSE", "README.md"]
+    }
+  }
+}

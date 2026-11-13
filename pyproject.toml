@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=77", "Cython>=3.0"]  # Cython ne sert que pour la version commerciale (setup.py)
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imagevers3d"
+version = "0.1.0"
+description = "Image vers 3D : transforme une image en modèle 3D (.glb, .obj), en local sur Windows."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
+authors = [{ name = "Maël Brungard" }]
+dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+# Outils de développement et de test (PyTorch reste à installer à part, voir docs/DEVELOPMENT.md).
+dev = ["pytest>=8", "ruff>=0.6", "cryptography>=43", "Cython>=3.0", "build>=1.2", "stripe>=10", "pyyaml>=6"]
+# Serveur de licences (server/) : tests et lancement local, voir docs/SERVER.md.
+server = ["fastapi>=0.115", "uvicorn>=0.30", "httpx>=0.27", "cryptography>=43"]
+
+[project.scripts]
+imagevers3d-diagnostic = "imagevers3d.diagnostic:main"
+
+[project.gui-scripts]
+imagevers3d = "imagevers3d.launcher:main"
+
+[tool.setuptools.dynamic]
+# Source unique des dépendances : requirements/main.in (l'installateur utilise sa version verrouillée).
+dependencies = { file = ["requirements/main.in"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+imagevers3d = ["assets/*", "assets/fonts/*", "shims/diso/*.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "server/tests"]
+addopts = "-ra"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["build", "dist"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# Scénarios : scripts autonomes, écrits en style compact (imports après la mise en place du chemin, une ligne par contrôle).
+"tests/scenarios/*" = ["E401", "E402", "E702", "E741"]

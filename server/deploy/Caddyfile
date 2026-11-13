@@ -1,0 +1,20 @@
+# HTTPS automatique (certificat Let's Encrypt) devant le serveur de licences.
+# Le nom de domaine vient de I3D_DOMAIN (server/.env) ; son DNS doit pointer vers ce serveur.
+{$I3D_DOMAIN} {
+	encode zstd gzip
+
+	# Le webhook Stripe et l'API ont de petits corps ; le serveur applique ses propres limites en plus.
+	request_body {
+		max_size 64KB
+	}
+
+	reverse_proxy licences:8000 {
+		# Caddy remplace X-Forwarded-For par l'adresse qu'il a réellement vue : un client ne peut pas la falsifier.
+		header_up X-Forwarded-For {remote_host}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}
