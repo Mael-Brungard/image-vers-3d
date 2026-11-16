@@ -160,14 +160,21 @@ jobs:
           path: build/installer/*
           if-no-files-found: error
 
+      - name: Rassembler les journaux (en cas d'échec)
+        if: failure()
+        shell: pwsh
+        run: |
+          # upload-artifact refuse les fichiers hors du dossier de travail : on les copie d'abord dedans.
+          New-Item -ItemType Directory -Force ci-logs | Out-Null
+          Copy-Item "$env:RUNNER_TEMP\setup-inno.log" ci-logs\ -ErrorAction SilentlyContinue
+          Copy-Item "$env:INSTALL_DIR\logs\*.log" ci-logs\ -ErrorAction SilentlyContinue
+
       - name: Journaux d'installation (en cas d'échec)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: journaux-installation
-          path: |
-            ${{ runner.temp }}/setup-inno.log
-            C:/i3d/logs/*.log
+          path: ci-logs
           if-no-files-found: ignore
 
       - name: Publier en brouillon sur la release GitHub

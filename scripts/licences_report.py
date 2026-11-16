@@ -6,7 +6,7 @@ exécute ce script, et signale ceux qui demandent une vérification avant une re
 Utilisation (une fois par environnement) :
     .venv\\Scripts\\python licences_rapport.py
     .venv-triposg\\Scripts\\python licences_rapport.py        (si TripoSG est installé)
-ou double-clique sur licences.bat. Le rapport est écrit dans le dossier `licences/`.
+Le rapport est écrit dans le dossier `licences/` de la racine du dépôt.
 
 Aucune dépendance : seule la bibliothèque standard de Python est utilisée. Le script lit les métadonnées
 que chaque paquet déclare ; une métadonnée absente ou vague (« UNKNOWN ») signifie qu'il faut ouvrir le
@@ -20,7 +20,8 @@ import sys
 from importlib import metadata
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]  # racine du dépôt : le rapport va dans licences/ (ignoré par git)
+OWN_PACKAGES = {"imagevers3d"}  # notre propre logiciel : licence propriétaire voulue, rien à vérifier
 
 # Motifs qui demandent une vérification avant de vendre un logiciel qui embarque ce paquet.
 AGPL = re.compile(r"\bAGPL|Affero", re.I)
@@ -84,6 +85,8 @@ def main() -> int:
     lines = [f"Environnement : {sys.prefix}", f"Python {sys.version.split()[0]}", f"{len(rows)} paquets", ""]
     for _, name, version, licence in rows:
         lines.append(f"{name} {version}  |  {licence}")
+        if name.lower() in OWN_PACKAGES:
+            continue
         if UNKNOWN.match(licence):
             unknown.append((name, version))
             continue
@@ -113,6 +116,8 @@ def main() -> int:
     print(f"A verifier : {len(flagged)} | LGPL (obligations) : {len(conditions)} | licence non declaree : {len(unknown)}")
     for n, v, lic, why in flagged:
         print(f"  - {n} {v} ({lic}) : {why}")
+    for n, v in unknown:
+        print(f"  - {n} {v} : licence non déclarée (ouvrir le dépôt du paquet)")
     print(f"Rapport complet : {report}")
     return 0
 
