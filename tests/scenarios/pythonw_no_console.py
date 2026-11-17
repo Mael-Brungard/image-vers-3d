@@ -1,4 +1,4 @@
-"""Simule pythonw.exe : stdout et stderr valent None au moment de l'import de imagevers3d.studio."""
+"""Simule pythonw.exe : stdout et stderr valent None au moment de l'import de threerex.studio."""
 import os, subprocess, sys, tempfile, textwrap
 from pathlib import Path
 
@@ -10,7 +10,7 @@ code = textwrap.dedent(f"""
     sys.stdout = None
     sys.stderr = None
     sys.path.insert(0, {str(SRC)!r})
-    from imagevers3d import studio
+    from threerex import studio
     assert sys.stdout is not None and sys.stderr is not None, "redirection absente"
     print("print ok")
     sys.stderr.write("stderr ok\\n")
@@ -25,7 +25,7 @@ code = textwrap.dedent(f"""
     import logging
     logging.getLogger("x").warning("warn ok")
 """)
-env = dict(os.environ, QT_QPA_PLATFORM="offscreen", IMAGEVERS3D_DATA=str(data))
+env = dict(os.environ, QT_QPA_PLATFORM="offscreen", THREEREX_DATA=str(data))
 r = subprocess.run([sys.executable, "-I", "-c", code], cwd=data, env=env, capture_output=True, text=True)
 print("code retour :", r.returncode)
 print("stderr du processus :", r.stderr.strip()[-400:])

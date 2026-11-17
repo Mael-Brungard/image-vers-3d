@@ -9,7 +9,7 @@ import pytest
 pytest.importorskip("skimage")
 trimesh = pytest.importorskip("trimesh")
 
-from imagevers3d import mcubes_fallback  # noqa: E402
+from threerex import mcubes_fallback  # noqa: E402
 
 
 def ellipsoid_volume(n, radii):

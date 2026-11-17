@@ -1,4 +1,4 @@
-"""Système de design : jetons identiques à la maquette, contrastes, feuille de style, icônes et composants."""
+"""Système de design ThreeRex : jetons, contrastes, feuille de style, icônes et composants."""
 
 import colorsys
 import json
@@ -13,12 +13,12 @@ from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtGui import QFontDatabase  # noqa: E402
 from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
 
-from imagevers3d import icons, theme, widgets  # noqa: E402
-from imagevers3d.theme import TOKENS, Motion, Theme, build_qss, contrast  # noqa: E402
+from threerex import icons, theme, widgets  # noqa: E402
+from threerex.theme import TOKENS, Motion, Theme, build_qss, contrast  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
-MODES = ("dark", "light")
-SURFACES = ("bg-app", "bg-viewport", "bg-panel", "bg-raised")
+MODES = ("dark",)
+SURFACES = ("bg-deep", "bg-app", "bg-viewport", "bg-panel", "bg-raised")
 
 
 @pytest.fixture(scope="module")
@@ -58,18 +58,30 @@ def test_tokens_match_design_file():
         assert TOKENS[mode] == data[mode], mode
 
 
-def test_modes_have_the_same_keys():
-    assert set(TOKENS["dark"]) == set(TOKENS["light"])
+def test_theme_is_dark_only():
+    """L'identité (halos, lueurs) n'a de sens que sur fond sombre : un seul thème, quoi qu'on demande."""
+    assert tuple(TOKENS) == ("dark",) and theme.THEME_MODES == ("dark",)
+    for asked in ("light", "system", "n'importe quoi", "dark"):
+        assert theme.resolve_mode(asked) == "dark"
+        assert Theme(asked).mode == "dark"
+
+
+def _hue(color: str) -> float:
+    r, g, b = (int(color[i : i + 2], 16) / 255 for i in (1, 3, 5))
+    return colorsys.rgb_to_hsv(r, g, b)[0] * 360
+
+
+def test_identity_is_orange_and_violet():
+    c = TOKENS["dark"]
+    for key in ("accent", "accent-hover", "accent-pressed", "accent-text", "accent-ui", "focus"):
+        assert 10 <= _hue(c[key]) <= 40, f"{key} n'est pas orange"
+    for key in ("violet", "violet-hover", "violet-text", "violet-deep", "violet-soft"):
+        assert 245 <= _hue(c[key]) <= 275, f"{key} n'est pas violet"
 
 
 @pytest.mark.parametrize("mode", MODES)
-def test_no_pure_black_and_no_violet_accent(mode):
-    colors = TOKENS[mode]
-    assert "#000000" not in {v.upper() for v in colors.values()}
-    for key in ("accent", "accent-hover", "accent-pressed", "accent-text", "accent-ui", "focus"):
-        r, g, b = (int(colors[key][i : i + 2], 16) / 255 for i in (1, 3, 5))
-        hue = colorsys.rgb_to_hsv(r, g, b)[0] * 360
-        assert not 270 <= hue <= 330, f"{key} est violet"
+def test_no_pure_black(mode):
+    assert "#000000" not in {v.upper() for v in TOKENS[mode].values()}
 
 
 # ---- contrastes -----------------------------------------------------------------------------------------------------
@@ -81,6 +93,7 @@ def test_text_contrast(mode, surface):
     assert contrast(c["text-secondary"], c[surface]) >= 4.5
     assert contrast(c["text-muted"], c[surface]) >= 4.5
     assert contrast(c["accent-text"], c[surface]) >= 4.5, "texte d'accent"
+    assert contrast(c["violet-text"], c[surface]) >= 4.5, "texte violet"
 
 
 @pytest.mark.parametrize("mode", MODES)
@@ -108,6 +121,9 @@ def test_primary_button_contrast(mode):
         assert contrast(c["on-accent"], c[key]) >= 4.5, key
     assert contrast(c["on-accent"], c["accent"]) >= 7
     assert contrast(c["text"], c["accent-soft"]) >= 7, "libellé du segment actif"
+    assert contrast(c["accent-text"], c["accent-soft"]) >= 4.5, "pastille « Recommandé »"
+    assert contrast(c["violet-text"], c["violet-soft"]) >= 4.5, "pastille violette"
+    assert contrast(c["text"], c["violet-soft"]) >= 7
 
 
 def test_contrast_function_known_values():
@@ -141,11 +157,11 @@ def test_theme_px_never_below_one():
 
 def test_fonts_are_bundled_and_load(app):
     for name in theme.FONT_FILES:
-        font = REPO / "src" / "imagevers3d" / "assets" / "fonts" / name
+        font = REPO / "src" / "threerex" / "assets" / "fonts" / name
         assert font.is_file(), name
         assert QFontDatabase.addApplicationFont(str(font)) >= 0, name
-    assert (REPO / "src" / "imagevers3d" / "assets" / "fonts" / "OFL.txt").is_file()
-    assert (REPO / "src" / "imagevers3d" / "assets" / "LUCIDE-LICENSE.txt").is_file()
+    assert (REPO / "src" / "threerex" / "assets" / "fonts" / "OFL.txt").is_file()
+    assert (REPO / "src" / "threerex" / "assets" / "LUCIDE-LICENSE.txt").is_file()
 
 
 def test_fonts_are_declared_as_package_data():
@@ -153,20 +169,13 @@ def test_fonts_are_declared_as_package_data():
     assert "assets/fonts/*" in pyproject
 
 
-def test_system_mode_resolves(app):
-    assert theme.resolve_mode("light") == "light"
-    assert theme.resolve_mode("dark") == "dark"
-    assert theme.resolve_mode("system") in MODES
-    assert theme.resolve_mode("n'importe quoi") == "dark"
-
-
-def test_apply_theme_switches_and_notifies(app):
+def test_apply_theme_notifies_and_scales(app):
     seen = []
-    theme.bus.changed.connect(lambda: seen.append(theme.current().mode))
-    theme.apply_theme(app, "light", 1.15)
-    assert theme.current().mode == "light" and theme.current().scale == 1.15
+    theme.bus.changed.connect(lambda: seen.append(theme.current().scale))
+    theme.apply_theme(app, "dark", 1.15)
+    assert theme.current().mode == "dark" and theme.current().scale == 1.15
     theme.apply_theme(app, "dark", 1.0)
-    assert seen[-2:] == ["light", "dark"]
+    assert seen[-2:] == [1.15, 1.0]
 
 
 # ---- mouvement ------------------------------------------------------------------------------------------------------
@@ -205,8 +214,8 @@ def test_every_icon_renders(app):
 def test_icons_used_in_code_exist():
     """Un nom d'icône mal orthographié ne doit pas attendre l'exécution pour se voir."""
     used = set()
-    for name in ("studio.py", "widgets.py"):
-        text = (REPO / "src" / "imagevers3d" / name).read_text(encoding="utf-8")
+    for name in ("studio.py", "widgets.py", "fx.py", "viewport.py", "pages.py"):
+        text = (REPO / "src" / "threerex" / name).read_text(encoding="utf-8")
         used |= set(re.findall(r'(?:icon=|IconButton\(|bind_icon\([^,]+,\s*|pixmap\()"([a-z0-9-]+)"', text))
     assert used, "aucune icône repérée : l'expression régulière est à revoir"
     assert used <= set(icons.NAMES), used - set(icons.NAMES)
@@ -360,18 +369,20 @@ def test_error_panel_content(app):
     assert panel.btn_back.isHidden() and panel.btn_copy.isHidden() and panel.hint.isHidden()
 
 
-def test_settings_popover_reports_choices(app):
-    menu = widgets.SettingsPopover()
+def test_settings_page_reports_choices(app):
+    from threerex.pages import SettingsPage
+
+    page = SettingsPage("version de test")
     events = []
-    menu.themeChanged.connect(lambda v: events.append(("theme", v)))
-    menu.scaleChanged.connect(lambda v: events.append(("scale", v)))
-    menu.reduceMotionChanged.connect(lambda v: events.append(("motion", v)))
-    menu.set_state("dark", 1.0, False)
+    page.scaleChanged.connect(lambda v: events.append(("scale", v)))
+    page.reduceMotionChanged.connect(lambda v: events.append(("motion", v)))
+    page.effectsChanged.connect(lambda v: events.append(("effects", v)))
+    page.set_state(1.0, False, True)
     assert events == [], "set_state ne doit pas émettre de signaux"
-    menu.seg_theme.setCurrentIndex(2)
-    menu.seg_scale.setCurrentIndex(2)
-    menu.sw_motion.setChecked(True)
-    assert events == [("theme", "light"), ("scale", 1.3), ("motion", True)]
+    page.seg_scale.setCurrentIndex(2)
+    page.sw_motion.setChecked(True)
+    page.sw_effects.setChecked(False)
+    assert events == [("scale", 1.3), ("motion", True), ("effects", False)]
 
 
 def test_theme_applies_with_item_views_alive(app):

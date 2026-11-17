@@ -1,42 +1,32 @@
-"""Enregistre des captures de l'interface (rendu hors écran, moteur factice) : états vide, image chargée, erreur.
+"""Enregistre des captures de l'interface (rendu hors écran, moteur factice) pour le README et la documentation.
 
     python scripts/render_ui_screens.py docs/images
 
-Le visualiseur 3D (OpenGL) n'existe pas en rendu hors écran : il apparaît vide dans ces captures.
+États : écran vide, image chargée, calcul en cours, erreur, « Mes créations », « Paramètres ».
+Le visualiseur 3D (OpenGL) n'existe pas en rendu hors écran : il reste vide dans ces captures.
 """
 
 import os
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ.setdefault("THREEREX_DATA", tempfile.mkdtemp(prefix="trx_data_"))
 REPO = Path(__file__).resolve().parents[1]
-if "IMAGEVERS3D_DATA" not in os.environ:  # lancé à la main : dossier de données jetable avec une licence de développement
-    sys.path.insert(0, str(REPO / "tools"))
-    import dev_license
-
-    dev_license.install(Path(tempfile.mkdtemp(prefix="i3d_data_")))
 sys.path.insert(0, str(REPO / "src"))
 
-from PIL import Image, ImageDraw  # noqa: E402
+from PIL import Image, ImageDraw, ImageFilter  # noqa: E402
 from PySide6.QtCore import QSettings  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from imagevers3d import license as lic  # noqa: E402
-from imagevers3d import studio  # noqa: E402
+from threerex import fx, studio  # noqa: E402
+from threerex.creations import CreationStore  # noqa: E402
 
-
-class StubLicense:
-    """Gestionnaire de licence factice : un état fixe, pour photographier l'écran Licence dans chacun de ses états."""
-
-    def __init__(self, state, message, days_left=None, license_id=None):
-        self._status = lic.LicenseStatus(state, message, days_left, license_id)
-
-    def status(self):
-        return self._status
+fx.Clock.require_active = False  # la plateforme hors écran ne devient pas « active » : on anime quand même
 
 
 class DemoEngine:
@@ -44,6 +34,18 @@ class DemoEngine:
 
     def triposg_ready(self):
         return False
+
+    def trellis_supported(self):
+        return False
+
+    def trellis_ready(self):
+        return False
+
+    def trellis_quant(self):
+        return "q4"
+
+    def set_trellis_quant(self, quant):
+        pass
 
     def device_label(self):
         return "GPU : NVIDIA GeForce RTX 4070 Ti"
@@ -57,63 +59,75 @@ class DemoEngine:
         raise RuntimeError("Mémoire GPU insuffisante. Choisis une qualité plus basse (Rapide ou Équilibré) et réessaie.")
 
 
-def demo_image():
-    img = Image.new("RGB", (640, 480), (232, 232, 232))
-    ImageDraw.Draw(img).ellipse((170, 100, 470, 400), fill=(196, 92, 52))
-    return img.convert("RGBA")
+def demo_image() -> Image.Image:
+    """Un vase orange sur fond clair : un sujet simple, comme celui que le logiciel reconstruit le mieux."""
+    img = Image.new("RGB", (900, 700), (236, 232, 226))
+    d = ImageDraw.Draw(img)
+    d.ellipse((260, 90, 640, 170), fill=(150, 70, 40))
+    d.polygon([(300, 130), (600, 130), (700, 420), (560, 640), (340, 640), (200, 420)], fill=(190, 92, 52))
+    d.ellipse((330, 70, 570, 150), fill=(110, 50, 30))
+    return img.filter(ImageFilter.GaussianBlur(1.2)).convert("RGBA")
 
 
-def window(mode, app):
+def window(app, store_dir: Path) -> studio.MainWindow:
     settings = QSettings(str(Path(tempfile.mkdtemp()) / "reglages.ini"), QSettings.Format.IniFormat)
-    settings.setValue("theme", mode)
-    win = studio.MainWindow(DemoEngine(), settings)
-    win.resize(1280, 800)
+    store = CreationStore(store_dir)
+    win = studio.MainWindow(DemoEngine(), settings, store)
+    win.resize(1360, 880)
     win.show()
-    QTest.qWait(250)
+    QTest.qWait(300)
     return win
 
 
 def main(out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     app = QApplication.instance() or QApplication([])
-    win = window("dark", app)
-    win.grab().save(str(out / "ecran-vide-sombre.png"))
+    store_dir = Path(tempfile.mkdtemp(prefix="trx_creations_"))
+    models = Path(tempfile.mkdtemp(prefix="trx_models_"))
+    store = CreationStore(store_dir)
+    for name, engine, info in (("vase_orange.glb", "TRELLIS.2", "1024 · 412 380 sommets"),
+                               ("lampe_de_bureau.glb", "TripoSR", "256 · 38 910 sommets"),
+                               ("statuette.obj", "TRELLIS.2", "1024 · 506 114 sommets")):
+        model = models / name
+        model.write_bytes(b"x" * 400_000)
+        store.add(model, engine=engine, info=info, thumbnail=demo_image())
+
+    win = window(app, store_dir)
+
+    def shot(name: str) -> None:
+        QTest.qWait(300)
+        win.grab().save(str(out / f"{name}.png"))
+
+    shot("ecran-vide")
     win.set_input(demo_image())
+    QTest.qWait(1200)
+    shot("ecran-image-chargee")
+
+    gate = threading.Event()
+
+    def waiting(progress, partial):
+        progress("Génération du modèle 3D…")
+        gate.wait(20)
+
+    win.run_task(waiting, lambda _result: None, kind="generate")
+    QTest.qWait(1600)
+    shot("ecran-calcul")
+    gate.set()
+    end = time.time() + 10
+    while win._task is not None and time.time() < end:
+        QTest.qWait(30)
+
     win.on_generate()
     end = time.time() + 10
     while win._task is not None and time.time() < end:
         QTest.qWait(30)
-    QTest.qWait(300)
-    win.grab().save(str(out / "ecran-erreur-sombre.png"))
-    win.close()
-    win = window("light", app)
-    win.set_input(demo_image())
-    win.grab().save(str(out / "ecran-image-chargee-clair.png"))
-    win.close()
+    shot("ecran-erreur")
 
-    # Écran Licence : accueil (sombre), essai terminé (clair, texte 130 %), essai en cours dans l'étude, licence active
-    lic._license_keys.SERVER_URL = "https://licence.exemple.fr"
-    lic._license_keys.BUY_URL = "https://exemple.fr/acheter"
-    shots = (
-        ("licence-accueil-sombre.png", "dark", 1.0, StubLicense("none", "")),
-        ("licence-essai-termine-clair.png", "light", 1.3, StubLicense("trial_expired", "L'essai gratuit est terminé.", 0)),
-        ("ecran-essai-sombre.png", "dark", 1.0, StubLicense("trial", "Essai gratuit : 5 jours restants.", 5, "trial")),
-        ("licence-active-sombre.png", "dark", 1.0, StubLicense("licensed", "Licence active.", None, "L123")),
-    )
-    for name, mode, scale, manager in shots:
-        lic.set_manager(manager)
-        settings = QSettings(str(Path(tempfile.mkdtemp()) / "reglages.ini"), QSettings.Format.IniFormat)
-        settings.setValue("theme", mode)
-        settings.setValue("text_scale", scale)
-        win = studio.MainWindow(DemoEngine(), settings)
-        win.resize(1280, 800)
-        win.show()
-        if name.startswith("licence-active"):
-            win.on_open_license()
-        QTest.qWait(300)
-        win.grab().save(str(out / name))
-        win.close()
-    lic.set_manager(None)
+    win.tabs.setCurrentIndex(studio.TAB_CREATIONS)
+    shot("ecran-creations")
+    win.tabs.setCurrentIndex(studio.TAB_SETTINGS)
+    shot("ecran-parametres")
+    win.close()
     print("captures écrites dans", out)
 
 

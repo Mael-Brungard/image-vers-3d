@@ -1,19 +1,37 @@
 # Licences : audit et décisions
 
-> Ceci est un état des lieux technique, **pas un avis juridique**. Fais-le relire avant de vendre.
+> Ceci est un état des lieux technique, **pas un avis juridique**.
 > Pages officielles et fichiers de licence consultés le **6 novembre 2026** ; les licences peuvent changer ensuite.
+
+## Usage personnel (situation actuelle)
+
+Depuis le 17 novembre 2026 le logiciel n'est plus destiné à être vendu : il sert à son auteur, en local, sur son propre
+ordinateur. Cela change ce qui est permis, mais pas tout :
+
+- **Les licences « non commerciales » (CC BY-NC, recherche seule…) autorisent un usage personnel et non lucratif.** Les modèles
+  qui étaient écartés *uniquement* pour cette raison (RMBG-2.0, FLUX.1 Kontext [dev]…) redeviennent utilisables ici. Les
+  objets imprimés pour soi, offerts ou exposés sans contrepartie restent dans ce cadre ; **dès qu'on vend les modèles 3D, les
+  figurines ou le logiciel, ces licences ne couvrent plus rien.** Marque-les dans le code pour ne pas l'oublier.
+- **Les licences qui excluent l'Union européenne (Tencent : Hunyuan3D, TripoSG) restent exclues**, même pour un usage personnel :
+  elles interdisent d'*utiliser* le modèle ou ses résultats dans l'Union, pas seulement de le vendre.
+- Les licences GPL/AGPL ne gênent pas un usage purement personnel (rien n'est distribué), mais elles reviennent dès qu'on
+  partage l'installateur ou le code.
+
+Choisir de préférence des modèles MIT ou Apache-2.0 reste la voie qui laisse la porte ouverte à la vente de figurines plus tard :
+on n'utilise un modèle « non commercial » que si le gain de qualité est net, et on le dit dans l'interface et dans ce fichier.
 
 ## Résumé des décisions
 
 | Composant | Décision | Raison |
 |---|---|---|
 | TripoSR (code et poids) | **utilisé**, distribué (code) / téléchargé (poids) | MIT |
+| TRELLIS.2 (Microsoft) via trellis.cpp | **utilisé** (moteur « Qualité maximale »), téléchargé à la demande | MIT (modèle et programme) ; BiRefNet MIT ; DINOv3 : licence propre à Meta ; conversion GGUF : « other » sur Hugging Face, voir le modèle d'origine |
 | rembg + modèle `u2net` | **utilisé** ; le modèle est nommé explicitement dans le code | le modèle par défaut des rembg récents est non commercial (voir plus bas) |
 | PySide6 (Qt) | **utilisé**, en bibliothèque séparée | LGPL-3.0 : obligations à respecter (voir plus bas) |
 | TripoSG | **exclu** (code conservé, désactivé) | licence Tencent qui exclut l'Union européenne (voir plus bas) |
-| RMBG-2.0 / `bria-rmbg` | **exclu** | CC BY-NC 4.0, accord commercial payant requis |
+| RMBG-2.0 / `bria-rmbg` | **autorisé pour usage personnel seulement** (pas encore utilisé) | CC BY-NC 4.0 : non commercial |
 | Hunyuan3D 2.x | **exclu** | licence qui exclut l'Union européenne |
-| FLUX.1 Kontext [dev], FLUX.2 klein 9B | **exclus** | non commerciaux |
+| FLUX.1 Kontext [dev], FLUX.2 klein 9B | usage personnel seulement (pas encore utilisés) | non commerciaux |
 | `pymeshlab` | **exclu** | GPL |
 | `imageio-ffmpeg` | **exclu** (on installe `imageio` seul) | embarque un binaire ffmpeg sous GPL |
 | `gradio` (interface web de TripoSR) | **exclu** | inutile ici ; dépendances nombreuses |
@@ -71,10 +89,11 @@ AGPL, propriétaire), *permis avec obligations* (LGPL), *non déclarée*. La CI 
 rapport à la release. Les bibliothèques CUDA (`nvidia-*`) tirées par PyTorch sont sous licence NVIDIA : elles sont
 téléchargées chez l'utilisateur depuis l'index de PyTorch, le logiciel ne les redistribue pas.
 
-## Avant de vendre
+## Si un jour tu vends ou partages (figurines, fichiers 3D ou logiciel)
 
 - [ ] Lire le rapport `licences-composants.txt` de la release : aucun paquet dans « A VERIFIER » sans explication écrite.
-- [ ] Faire relire `THIRD_PARTY_NOTICES.md` et le contrat d'utilisation (`packaging/windows/EULA.fr.txt`).
+- [ ] Faire relire `THIRD_PARTY_NOTICES.md` ; rédiger un contrat d'utilisation (il n'y en a plus : l'ancien a été retiré avec la vente).
+- [ ] Remplacer tout modèle « usage personnel seulement » par un modèle permissif, ou obtenir un accord commercial.
 - [ ] Confirmer la licence des poids U²-Net (ou passer à un modèle de détourage dont les poids sont explicitement permissifs).
 - [ ] Avis juridique sur TripoSG (figurines passées) et sur la responsabilité liée aux images fournies (personnages, marques).
 - [ ] Ne jamais ajouter un modèle ou une bibliothèque sans lire sa licence : la liste « exclus » ci-dessus s'allonge souvent.

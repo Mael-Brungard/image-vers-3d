@@ -5,16 +5,13 @@ build_stage.py - Prépare le dossier `build/stage` qui alimente l'installateur W
 Contenu produit :
     bin/uv.exe                      programme qui crée l'environnement Python chez l'utilisateur (somme SHA-256 vérifiée)
     vendor/TripoSR/                 code de TripoSR au commit épinglé (le strict nécessaire, sans .git ni exemples)
-    wheels/imagevers3d-*.whl        le logiciel lui-même
+    wheels/threerex-*.whl        le logiciel lui-même
     requirements/windows-py311.lock dépendances verrouillées (avec sommes de contrôle)
-    setup_runtime.bat, setup_config.bat, icon.ico, licenses/, EULA.fr.txt
+    setup_runtime.bat, setup_config.bat, icon.ico, licenses/
 
-Utilisation (depuis la racine du dépôt) — version COMMERCIALE (modules de licence compilés, voir docs/LICENSING.md) :
-    I3D_COMPILE_LICENSE=1 I3D_LICENSE_PUBKEYS=k1=<base64> I3D_LICENSE_URL=https://... python -m build --wheel
-    python packaging/build_stage.py --wheel dist/imagevers3d-0.1.0-*.whl --import-check
-
-Le script REFUSE une wheel dont les modules de licence ne sont pas compilés (--allow-uncompiled : développement seulement,
-le résultat ne doit jamais être distribué).
+Utilisation (depuis la racine du dépôt) :
+    python -m build --wheel
+    python packaging/build_stage.py --wheel dist/threerex-0.1.0-py3-none-any.whl
 
 Fonctionne sous Linux comme sous Windows (utile pour tester le contenu sans compiler l'installateur).
 TripoSG n'est volontairement PAS inclus : sa licence exclut l'Union européenne (voir docs/LICENSES.md).
@@ -33,9 +30,6 @@ import zipfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from verify_wheel import check_wheel  # noqa: E402
-
 WINDOWS = Path(__file__).resolve().parent / "windows"
 DEFAULT_STAGE = REPO / "build" / "stage"
 
@@ -116,11 +110,10 @@ def copy_documents(stage: Path) -> None:
     shutil.copy2(REPO / "THIRD_PARTY_NOTICES.md", licenses / "THIRD_PARTY_NOTICES.md")
     shutil.copy2(REPO / "LICENSE", licenses / "LICENSE.txt")
     shutil.copy2(stage / "vendor" / "TripoSR" / "LICENSE", licenses / "TripoSR-LICENSE.txt")
-    assets = REPO / "src" / "imagevers3d" / "assets"
+    assets = REPO / "src" / "threerex" / "assets"
     shutil.copy2(assets / "fonts" / "OFL.txt", licenses / "Inter-OFL.txt")
     shutil.copy2(assets / "LUCIDE-LICENSE.txt", licenses / "Lucide-ISC.txt")
-    shutil.copy2(WINDOWS / "EULA.fr.txt", stage / "EULA.fr.txt")
-    shutil.copy2(REPO / "src" / "imagevers3d" / "assets" / "icon.ico", stage / "icon.ico")
+    shutil.copy2(REPO / "src" / "threerex" / "assets" / "icon.ico", stage / "icon.ico")
     shutil.copy2(WINDOWS / "setup_runtime.bat", stage / "setup_runtime.bat")
     (stage / "requirements").mkdir()
     shutil.copy2(REPO / "requirements" / "windows-py311.lock", stage / "requirements" / "windows-py311.lock")
@@ -131,20 +124,12 @@ def main() -> int:
     parser.add_argument("--wheel", required=True, type=Path, help="Wheel du logiciel (python -m build --wheel).")
     parser.add_argument("--stage", type=Path, default=DEFAULT_STAGE, help="Dossier de sortie (recréé).")
     parser.add_argument("--cache", type=Path, default=REPO / "build" / "cache", help="Dossier de téléchargements.")
-    parser.add_argument("--import-check", action="store_true", help="Charger la version compilée pour vérifier clé publique et adresse (même plateforme que la construction).")
-    parser.add_argument("--allow-uncompiled", action="store_true", help="DÉVELOPPEMENT : accepter une wheel sans modules de licence compilés.")
     args = parser.parse_args()
 
     versions = json.loads((WINDOWS / "versions.json").read_text(encoding="utf-8"))
     wheel = args.wheel.resolve()
     if not wheel.is_file() or wheel.suffix != ".whl":
         raise SystemExit(f"Wheel introuvable : {wheel}")
-
-    problems = check_wheel(wheel, require_compiled=not args.allow_uncompiled, import_check=args.import_check and not args.allow_uncompiled)
-    if problems:
-        raise SystemExit("Wheel refusée (version commerciale) :\n - " + "\n - ".join(problems))
-    if args.allow_uncompiled:
-        print("ATTENTION : wheel NON compilée acceptée (--allow-uncompiled). Ne distribue jamais le résultat.", file=sys.stderr)
 
     stage = args.stage.resolve()
     shutil.rmtree(stage, ignore_errors=True)

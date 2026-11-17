@@ -1,6 +1,6 @@
 @echo off
 rem ===========================================================================
-rem  setup_runtime.bat - Cree l'environnement Python de "Image vers 3D"
+rem  setup_runtime.bat - Cree l'environnement Python de "ThreeRex"
 rem  (PyTorch + dependances verrouillees + le logiciel).
 rem
 rem  Lance par l'installateur, et par le raccourci "Reparer l'installation".
@@ -9,7 +9,7 @@ rem    cuda    PyTorch pour carte NVIDIA (par defaut)
 rem    cpu     PyTorch sur processeur (tests, ou ordinateur sans carte NVIDIA)
 rem    silent  aucune pause ni question (installation silencieuse)
 rem    repair  efface l'environnement existant avant de le recreer
-rem  Variable facultative : IMAGEVERS3D_TORCH_INDEX = autre source de PyTorch.
+rem  Variable facultative : THREEREX_TORCH_INDEX = autre source de PyTorch.
 rem
 rem  Sans danger a relancer : les etapes deja faites sont rapides.
 rem  Fichier volontairement en ASCII : cmd.exe ne lit pas bien les accents.
@@ -33,13 +33,13 @@ if not exist setup_config.bat (
 )
 call setup_config.bat
 if /I "%FLAVOR%"=="cpu" (set "TORCH_INDEX=%TORCH_INDEX_CPU%") else (set "TORCH_INDEX=%TORCH_INDEX_CUDA%")
-if defined IMAGEVERS3D_TORCH_INDEX set "TORCH_INDEX=%IMAGEVERS3D_TORCH_INDEX%"
+if defined THREEREX_TORCH_INDEX set "TORCH_INDEX=%THREEREX_TORCH_INDEX%"
 
 set "UV=%~dp0bin\uv.exe"
 set "VENV=%~dp0runtime\main"
 set "VENV_PYTHON=%VENV%\Scripts\python.exe"
 set "UV_PYTHON_INSTALL_DIR=%~dp0runtime\python"
-set "UV_CACHE_DIR=%LOCALAPPDATA%\ImageVers3D\uv-cache"
+set "UV_CACHE_DIR=%LOCALAPPDATA%\ThreeRex\uv-cache"
 set "UV_PYTHON_DOWNLOADS=automatic"
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
@@ -50,7 +50,7 @@ if not exist "%UV%" (
 )
 
 echo.
-echo ==== Image vers 3D : installation des composants (%FLAVOR%) ====
+echo ==== ThreeRex : installation des composants (%FLAVOR%) ====
 echo Cette etape telecharge PyTorch et les bibliotheques (plusieurs Go) : elle peut durer 10 a 30 minutes.
 echo Ne ferme pas cette fenetre.
 echo.
@@ -78,19 +78,19 @@ echo == [4/5] Bibliotheques
 "%UV%" pip install --python "%VENV_PYTHON%" --require-hashes -r "%~dp0requirements\windows-py311.lock"
 if errorlevel 1 goto fail
 
-echo == [5/5] Image vers 3D
+echo == [5/5] ThreeRex
 set "WHEEL="
-for %%F in ("%~dp0wheels\imagevers3d-*.whl") do set "WHEEL=%%~fF"
+for %%F in ("%~dp0wheels\threerex-*.whl") do set "WHEEL=%%~fF"
 if not defined WHEEL (
-  echo Aucun fichier wheels\imagevers3d-*.whl : l'installation de l'application est incomplete.
+  echo Aucun fichier wheels\threerex-*.whl : l'installation de l'application est incomplete.
   goto fail
 )
-"%UV%" pip install --python "%VENV_PYTHON%" --no-deps --reinstall-package imagevers3d "%WHEEL%"
+"%UV%" pip install --python "%VENV_PYTHON%" --no-deps --reinstall-package threerex "%WHEEL%"
 if errorlevel 1 goto fail
 
 echo.
 echo == Verification
-"%VENV_PYTHON%" -m imagevers3d.diagnostic
+"%VENV_PYTHON%" -m threerex.diagnostic
 if errorlevel 1 goto fail
 
 echo ok> "%~dp0runtime\ready.txt"

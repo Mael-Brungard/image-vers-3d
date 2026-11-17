@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import trimesh
-from imagevers3d.geometry import ORIENTATION, Y_UP_TO_Z_UP, display_arrays
+from threerex.geometry import ORIENTATION, Y_UP_TO_Z_UP, display_arrays
 
 ok = True
 def check(name, cond):

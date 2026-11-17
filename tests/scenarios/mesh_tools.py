@@ -3,7 +3,7 @@ import json, struct, sys, io
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 import numpy as np, trimesh
-from imagevers3d import mesh_tools as mt
+from threerex import mesh_tools as mt
 
 failed = 0
 def check(label, ok):

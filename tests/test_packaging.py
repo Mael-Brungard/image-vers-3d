@@ -22,7 +22,7 @@ def test_only_triposr_is_vendored():
     assert re.fullmatch(r"[0-9a-f]{40}", VERSIONS["vendor"]["TripoSR"]["commit"])
 
 
-@pytest.mark.parametrize("name", ["ImageVers3D.iss", "setup_runtime.bat", "versions.json", "EULA.fr.txt"])
+@pytest.mark.parametrize("name", ["ThreeRex.iss", "setup_runtime.bat", "versions.json"])
 def test_installer_does_not_mention_triposg(name):
     assert "triposg" not in (WINDOWS / name).read_text(encoding="utf-8-sig").lower()
 
@@ -35,7 +35,7 @@ def test_batch_files_are_ascii_with_crlf():
 
 
 def test_inno_script_basics():
-    raw = (WINDOWS / "ImageVers3D.iss").read_bytes()
+    raw = (WINDOWS / "ThreeRex.iss").read_bytes()
     assert raw.startswith(b"\xef\xbb\xbf"), "UTF-8 avec BOM attendu"
     text = raw.decode("utf-8-sig")
     assert "PrivilegesRequired=lowest" in text
@@ -69,8 +69,8 @@ def test_lock_matches_declared_direct_dependencies():
 
 
 def test_package_data_is_present():
-    assert (REPO / "src" / "imagevers3d" / "assets" / "icon.ico").is_file()
-    assert (REPO / "src" / "imagevers3d" / "shims" / "diso" / "__init__.py").is_file()
+    assert (REPO / "src" / "threerex" / "assets" / "icon.ico").is_file()
+    assert (REPO / "src" / "threerex" / "shims" / "diso" / "__init__.py").is_file()
 
 
 def test_torch_version_is_pinned():

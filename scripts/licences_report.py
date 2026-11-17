@@ -21,7 +21,7 @@ from importlib import metadata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]  # racine du dépôt : le rapport va dans licences/ (ignoré par git)
-OWN_PACKAGES = {"imagevers3d"}  # notre propre logiciel : licence propriétaire voulue, rien à vérifier
+OWN_PACKAGES = {"threerex"}  # notre propre logiciel : licence propriétaire voulue, rien à vérifier
 
 # Motifs qui demandent une vérification avant de vendre un logiciel qui embarque ce paquet.
 AGPL = re.compile(r"\bAGPL|Affero", re.I)

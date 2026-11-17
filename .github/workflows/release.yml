@@ -44,34 +44,14 @@ jobs:
           echo "version=$project_version" >> "$GITHUB_OUTPUT"
           echo "Version : $project_version"
 
-      - name: Vérifier la configuration de licence
-        shell: bash
-        env:
-          I3D_LICENSE_PUBKEYS: ${{ vars.I3D_LICENSE_PUBKEYS }}
-          I3D_LICENSE_URL: ${{ vars.I3D_LICENSE_URL }}
-        run: |
-          if [ -z "$I3D_LICENSE_PUBKEYS" ] || [ -z "$I3D_LICENSE_URL" ]; then
-            echo "::error::Variables du dépôt manquantes : I3D_LICENSE_PUBKEYS (clé publique, jamais la clé privée) et I3D_LICENSE_URL. Voir docs/LICENSING.md, « Construire une version »."
-            exit 1
-          fi
-
-      - name: Construire le logiciel (wheel, modules de licence compilés)
-        shell: bash
-        env:
-          I3D_COMPILE_LICENSE: "1"
-          I3D_LICENSE_PUBKEYS: ${{ vars.I3D_LICENSE_PUBKEYS }}
-          I3D_LICENSE_URL: ${{ vars.I3D_LICENSE_URL }}
-          I3D_BUY_URL: ${{ vars.I3D_BUY_URL }}
+      - name: Construire le logiciel (wheel)
         run: |
           python -m pip install build
           python -m build --wheel
-          ls -la dist
 
       - name: Préparer le dossier de l'installateur
         shell: bash
-        run: |
-          wheel="$(ls dist/imagevers3d-*.whl)"
-          python packaging/build_stage.py --wheel "$wheel" --import-check
+        run: python packaging/build_stage.py --wheel dist/threerex-${{ steps.version.outputs.version }}-py3-none-any.whl
 
       - name: Compiler l'installateur (Inno Setup)
         shell: pwsh
@@ -80,14 +60,14 @@ jobs:
           if (-not (Test-Path $iscc)) {
             choco install innosetup --no-progress -y
           }
-          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" packaging\windows\ImageVers3D.iss
+          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" packaging\windows\ThreeRex.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC a échoué (code $LASTEXITCODE)" }
           Get-ChildItem build\installer
 
       - name: Tester l'installation silencieuse (PyTorch sur processeur)
         shell: pwsh
         run: |
-          $installer = (Get-ChildItem build\installer\ImageVers3D-Setup-*.exe).FullName
+          $installer = (Get-ChildItem build\installer\ThreeRex-Setup-*.exe).FullName
           $installArgs = @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/DIR=$env:INSTALL_DIR", "/TORCH=cpu", "/LOG=$env:RUNNER_TEMP\setup-inno.log")
           $process = Start-Process -FilePath $installer -ArgumentList $installArgs -Wait -PassThru
           Write-Host "Code de sortie de l'installateur : $($process.ExitCode)"
@@ -103,13 +83,13 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           $python = "$env:INSTALL_DIR\runtime\main\Scripts\python.exe"
-          & $python -m imagevers3d.diagnostic
+          & $python -m threerex.diagnostic
           if ($LASTEXITCODE -ne 0) { throw "Le diagnostic signale des problèmes" }
-          & $python -c "from imagevers3d import studio, __version__; print('interface importée, version', __version__)"
+          & $python -c "from threerex import studio, __version__; print('interface importée, version', __version__)"
           if ($LASTEXITCODE -ne 0) { throw "L'interface ne s'importe pas" }
-          $menu = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Image vers 3D"
+          $menu = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\ThreeRex"
           Get-ChildItem $menu
-          foreach ($name in @("Image vers 3D.lnk", "Diagnostic.lnk")) {
+          foreach ($name in @("ThreeRex.lnk", "Diagnostic.lnk")) {
             if (-not (Test-Path "$menu\$name")) { throw "Raccourci manquant : $name" }
           }
 
@@ -118,14 +98,7 @@ jobs:
         shell: pwsh
         run: |
           $python = "$env:INSTALL_DIR\runtime\main\Scripts\python.exe"
-          # Le logiciel installé est la version commerciale : sa licence ne se contourne pas, y compris ici. Pour ce test seulement,
-          # on le remplace par une wheel NON compilée (mêmes sources) qui accepte la licence de développement de tools/dev_license.py.
-          python -m pip install build cryptography
-          python -m build --wheel --outdir dist-dev
-          & "$env:INSTALL_DIR\bin\uv.exe" pip install --python $python --no-deps --reinstall-package imagevers3d (Get-ChildItem dist-dev\imagevers3d-*-py3-none-any.whl).FullName
-          if ($LASTEXITCODE -ne 0) { throw "Installation de la wheel de test impossible" }
-          python tools\dev_license.py --data-dir "$env:RUNNER_TEMP\i3d_data" | ForEach-Object { $name, $value = $_ -split "=", 2; Set-Item "env:$name" $value }
-          & $python -m imagevers3d.image_to_3d tests\data\sample.png --output-dir "$env:RUNNER_TEMP\sortie" --device cpu --mc-resolution 96
+          & $python -m threerex.image_to_3d tests\data\sample.png --output-dir "$env:RUNNER_TEMP\sortie" --device cpu --mc-resolution 96
           if ($LASTEXITCODE -ne 0) { throw "La génération a échoué" }
           $glb = Get-ChildItem "$env:RUNNER_TEMP\sortie" -Recurse -Filter *.glb | Select-Object -First 1
           if (-not $glb) { throw "Aucun fichier .glb produit" }
@@ -149,14 +122,14 @@ jobs:
         shell: pwsh
         run: |
           Set-Location build\installer
-          Get-ChildItem ImageVers3D-Setup-*.exe | ForEach-Object {
+          Get-ChildItem ThreeRex-Setup-*.exe | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
           } | Set-Content -Encoding ascii SHA256SUMS.txt
           Get-Content SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ImageVers3D-installateur-${{ steps.version.outputs.version }}
+          name: ThreeRex-installateur-${{ steps.version.outputs.version }}
           path: build/installer/*
           if-no-files-found: error
 
@@ -185,5 +158,5 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --draft --generate-notes \
-            --title "Image vers 3D ${{ steps.version.outputs.version }}" \
-            build/installer/ImageVers3D-Setup-*.exe build/installer/SHA256SUMS.txt build/installer/licences-composants.txt
+            --title "ThreeRex ${{ steps.version.outputs.version }}" \
+            build/installer/ThreeRex-Setup-*.exe build/installer/SHA256SUMS.txt build/installer/licences-composants.txt

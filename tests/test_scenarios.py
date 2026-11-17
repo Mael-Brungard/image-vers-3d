@@ -11,6 +11,7 @@ import pytest
 SCENARIOS = Path(__file__).parent / "scenarios"
 NEEDS = {
     "studio_ui": ("PySide6", "pyqtgraph", "OpenGL", "trimesh", "PIL", "numpy"),
+    "layout_audit": ("PySide6", "pyqtgraph", "OpenGL", "trimesh", "PIL", "numpy"),
     "mesh_tools": ("trimesh", "numpy", "fast_simplification", "scipy", "PIL"),
     "orientation": ("trimesh", "numpy"),
     "triposg_worker": ("trimesh", "numpy", "fast_simplification", "scipy", "skimage", "PIL"),

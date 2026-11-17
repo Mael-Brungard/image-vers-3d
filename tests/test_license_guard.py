@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-SRC = REPO / "src" / "imagevers3d"
+SRC = REPO / "src" / "threerex"
 
 FORBIDDEN_DEPENDENCIES = ("pymeshlab", "hunyuan", "imageio-ffmpeg", "imageio[ffmpeg]", "bria", "flux")
 

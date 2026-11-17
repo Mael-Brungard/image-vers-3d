@@ -1,136 +1,211 @@
 # Design de l'interface
 
-Ce document décrit le système de design de « Image vers 3D » : ce qu'il y a dans l'interface, pourquoi, et comment le
-modifier sans le casser. La maquette Figma (fondations, composants avec tous leurs états, huit écrans dont le thème clair
-et le menu Réglages) en est la référence visuelle ; le code l'applique dans `src/imagevers3d/theme.py`, `icons.py`,
-`widgets.py` et `studio.py`.
+Ce document décrit le système de design de « ThreeRex » : ce qu'il y a dans l'interface, pourquoi, et comment le
+modifier sans le casser. Il remplace l'ancien thème graphite et ambre. Le point de départ est une maquette générée par IA
+(mascotte T-Rex, orange incandescent et violet électrique) : l'identité en est reprise et poussée plus loin, mais chaque
+texte, chaque pastille et chaque réglage de l'écran correspond à une vraie fonction du logiciel.
+
+Le code se trouve dans `src/threerex/` : `theme.py` (couleurs, feuille de style), `fx.py` (mascotte, logo, robot, halos,
+animations, panneaux), `widgets.py` (composants), `viewport.py` (visualiseur 3D et ses calques), `pages.py` (« Mes
+créations » et « Paramètres »), `print_dialog.py` (réglages d'impression 3D), `studio.py` (la fenêtre et son état).
 
 ## Parti pris
 
-L'application sert à une tâche précise : transformer une image en objet 3D, le vérifier, l'enregistrer. L'interface
-doit donc disparaître derrière la tâche tout en donnant une impression de précision.
+L'application sert à une tâche précise : transformer une image en objet 3D, le vérifier, l'enregistrer. L'identité doit se
+voir et se sentir, **sans jamais ralentir la manipulation** : les effets d'ambiance (halos, particules, robot) s'arrêtent
+d'eux-mêmes pendant un geste dans le visualiseur, et un réglage « Effets visuels » les coupe tous.
 
-- **Un seul accent, l'ambre.** Il n'apparaît que pour l'action principale, la sélection, le focus et la progression. Tout
-  le reste est gris graphite légèrement froid. Pas de dégradé, pas de verre dépoli, pas d'ombre décorative.
-- **Une seule action principale par vue.** Avant le résultat, « Générer la 3D » est le bouton plein ; après, c'est
-  « Enregistrer sous… » (et « Générer » devient « Générer à nouveau », secondaire). Dans un écran d'erreur, c'est « Réessayer ».
-- **Aucune fenêtre modale pour signaler un problème.** Une erreur s'affiche dans le visualiseur : ce qui s'est passé, quoi
-  faire, et les actions (Réessayer, Copier les détails, Ouvrir le journal, Revenir au modèle). Les confirmations sont des
-  notifications qui disparaissent seules.
-- **Les états vides enseignent.** Le visualiseur vide montre les raccourcis (Ctrl+O, Ctrl+V, Ctrl+Entrée) au lieu de
-  « Rien ici ».
-- **Un seul visuel animé, discret** : un globe en fil de fer qui tourne (états vide et calcul), avec un seul trait ambre.
+- **Deux couleurs, deux rôles.** L'orange incandescent (`accent`) désigne l'action : « Générer la 3D », « Enregistrer sous… »,
+  la sélection, la progression. Le violet électrique (`violet`) dessine la structure : cadres, halos, bordures, aides.
+  Un seul bouton plein par vue.
+- **Un seul thème, sombre.** Les halos et les lueurs n'ont de sens que sur fond sombre ; il n'y a donc volontairement ni
+  thème clair ni thème « Système » (l'ancien réglage est ignoré).
+- **Formes angulaires.** Les panneaux, boutons et le cadre du visualiseur ont des angles coupés (comme dans la maquette) ;
+  les petits contrôles (curseur, interrupteur, champs) restent arrondis pour rester lisibles à 13 px.
+- **Une zone 3D immense.** Le visualiseur prend tout l'espace libre ; le panneau de gauche se redimensionne à la
+  souris (poignée à points entre les deux, largeur mémorisée).
+- **Les états enseignent.** Le visualiseur vide montre le T-Rex et les raccourcis ; l'assistant (le robot) commente
+  l'état courant dans une bulle et donne une vraie astuce quand on clique dessus.
+- **Aucune fenêtre modale pour signaler un problème.** Une erreur s'affiche dans le visualiseur avec ses actions
+  (Réessayer, Copier les détails, Ouvrir le journal, Revenir au modèle) ; les confirmations sont des notifications.
+  La seule fenêtre à part est un **choix**, jamais un message : « Impression 3D » (`print_dialog.py`), qui s'ouvre à
+  l'enregistrement en STL pour demander la hauteur de la figurine. Un STL qu'on n'a pas pu fermer est signalé comme une erreur :
+  notification orange, barre d'état et bulle du robot.
+- **Honnêteté du contenu.** Rien n'est inventé : pas de pourcentage ni de « temps estimé » (le moteur ne les fournit pas),
+  pastilles du pied de page = données réelles (taille de l'image, moteur choisi, durée *mesurée* de la dernière génération).
+  L'animation de reconstruction pendant le calcul est un décor : elle ne représente pas l'avancement.
+
+## Structure de la fenêtre
+
+```
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ [T-Rex] ThreeRex   │ Image vers 3D │ Mes créations │ Paramètres │   ● GPU : …  │  barre du haut
+├──────────────────────────┬────────────────────────────────────────────────────┤
+│ Importer ton image       │                                       [⟳][▢][?][⛶] │
+│  (halo, dépôt, scan)     │            Visualiseur 3D                          │
+│ Réglages avancés ▾       │   vide : T-Rex · calcul : reconstruction · résultat│
+│  Moteur · Précision      │                                                    │
+│  Qualité                 │      [Faire pivoter][Déplacer][Zoom][Réinitialiser]│
+│  Options de génération   ├────────────────────────────────────────────────────┤
+│  Plus d'options ▸        │ Format [GLB|OBJ|STL]               📁 [Enregistrer]│
+│ [   Générer la 3D  →  ]  │                                                    │
+├──────────────────────────┴────────────────────────────────────────────────────┤
+│ ◌ Image : 900×700 ◌ Moteur : TripoSR  │ progression │ (bulle d'astuce) [robot]│  pied de page
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Barre du haut** : logo, trois onglets (Ctrl+1, Ctrl+2, Ctrl+3) et pastille du calcul (vert « GPU : … » ou ambre
+  « Processeur (lent) »). Sous 1160 px de large, l'accroche du logo disparaît pour laisser la place au nom de la carte.
+- **Panneau de gauche** : « Importer ton image » (zone de dépôt avec halo animé ; à l'import, une ligne lumineuse balaie
+  l'image), « Réglages avancés » repliable, bouton principal toujours visible en bas.
+- **Visualiseur** : quatre pages (vide, calcul, résultat, erreur). Résultat : gestes Faire pivoter / Déplacer / Zoom /
+  Réinitialiser, outils (rotation automatique, Redresser et Pivoter, maillage, aide, plein écran), pastille d'information,
+  sélecteur de variante. Une transition fait se dissoudre l'image d'origine sur le modèle (900 ms ; absente si les
+  effets sont coupés).
+- **Pied de page** : pastilles, ligne d'état, barre de progression (pendant un calcul), bulle et robot. Les pastilles
+  disparaissent l'une après l'autre quand la place manque ; le robot n'est jamais coupé.
+- **Mes créations** : les fichiers réellement enregistrés (vignette = image de départ, moteur, taille, date). Retirer une
+  carte **ne supprime jamais le fichier**. Un fichier déplacé est signalé « Fichier introuvable ».
+- **Paramètres** : taille du texte, animations, effets visuels, carte graphique, dossier des données, prompt ChatGPT,
+  journal, licences, à propos.
 
 ## Couleurs
 
-Source unique : `design/tokens.json`, recopiée dans `theme.TOKENS` (un test échoue si les deux divergent) et dans les
-variables Figma (collection « Couleurs », modes Sombre et Clair). Le thème sombre est le thème par défaut ; « Système »
-suit Windows en direct.
+Source unique : `design/tokens.json`, recopiée dans `theme.TOKENS` (un test échoue si les deux divergent).
 
-| Jeton | Rôle | Sombre | Clair |
-|---|---|---|---|
-| `bg-app` | fond de la fenêtre | `#12141A` | `#F4F5F7` |
-| `bg-viewport` | fond du visualiseur 3D et des zones d'image | `#0D0F13` | `#E6E9EE` |
-| `bg-panel` | barres, panneau de gauche, cartes | `#1A1D23` | `#FFFFFF` |
-| `bg-raised` | champs, boutons secondaires, info-bulles | `#232831` | `#F0F2F5` |
-| `bg-hover` | survol | `#2B313B` | `#E6E9EE` |
-| `bg-pressed` | appui, rail du curseur | `#343B47` | `#DADFE6` |
-| `border` | séparateurs | `#303741` | `#D5DAE1` |
-| `border-strong` | contour des contrôles (≥ 3:1) | `#7C8695` | `#6C7685` |
-| `text` | texte principal (≥ 7:1) | `#ECEEF2` | `#16191F` |
-| `text-secondary` | texte secondaire (≥ 4,5:1) | `#B0B8C4` | `#434C5A` |
-| `text-muted` | aides et légendes (≥ 4,5:1) | `#98A1AE` | `#566170` |
-| `text-disabled` | éléments désactivés (exemptés de contraste) | `#6B7482` | `#8A93A0` |
-| `accent` | fond de l'action principale | `#F2A33A` | `#F2A33A` |
-| `accent-hover` | action principale au survol | `#F7B55C` | `#E8940F` |
-| `accent-pressed` | action principale appuyée | `#D98E26` | `#CC7F08` |
-| `on-accent` | texte sur l'accent | `#1B1305` | `#1B1305` |
-| `accent-text` | texte d'accent sur les fonds neutres | `#F5B351` | `#8A4F00` |
-| `accent-soft` | fond d'une sélection | `#2E2616` | `#FDF0DC` |
-| `accent-ui` | contour et remplissage d'accent (≥ 3:1) | `#F2A33A` | `#A85F00` |
-| `focus` | anneau de focus clavier | `#F7B55C` | `#A85F00` |
-| `success` | réussite, GPU détecté | `#5BCB8E` | `#17703F` |
-| `danger` | erreur | `#F47C74` | `#B3261E` |
-| `warning` | avertissement, calcul sur processeur | `#E7C84A` | `#7A5F00` |
-| `info` | information | `#73B8F0` | `#1B62A8` |
+| Jeton | Rôle | Valeur |
+|---|---|---|
+| `bg-deep` | fond le plus profond, cadre du visualiseur | `#07060F` |
+| `bg-app` | fond de la fenêtre | `#0C0A18` |
+| `bg-viewport` | fond du visualiseur 3D et des zones d'image | `#0A0916` |
+| `bg-panel` | panneaux, cartes | `#15122B` |
+| `bg-raised` | champs, boutons secondaires, info-bulles | `#1E1A3A` |
+| `bg-hover` / `bg-pressed` | survol / appui | `#29234D` / `#342D5E` |
+| `border` | séparateurs | `#322B63` |
+| `border-strong` | contour des contrôles | `#8A80BF` |
+| `text` / `text-secondary` / `text-muted` | textes | `#F4F1FF` / `#C9C2E6` / `#A9A1D0` |
+| `text-disabled` | éléments désactivés (exemptés de contraste) | `#6F6898` |
+| `accent` (= `accent-ui`) | orange incandescent : action principale, sélection | `#FF7A1A` |
+| `accent-hover` / `accent-pressed` | survol / appui | `#FF9442` / `#E5620A` |
+| `on-accent` | texte sur l'orange | `#1A0B02` |
+| `accent-text` | texte orange sur fond sombre | `#FF9A4D` |
+| `accent-soft` | fond d'une sélection | `#3A2113` |
+| `focus` | anneau de focus clavier | `#FFB27A` |
+| `violet` | violet électrique : cadres, halos | `#8B5CF6` |
+| `violet-hover` / `violet-deep` | survol, trait clair / violet profond | `#A58AFF` / `#5B2DD1` |
+| `violet-text` / `violet-soft` | texte violet / fond de pastille | `#B9A3FF` / `#2B2255` |
+| `success` / `danger` / `warning` / `info` | états | `#4ADE9A` / `#FF8080` / `#FFD166` / `#7CC4FF` |
 
 ### Contrastes mesurés
 
-Calculés avec la formule WCAG 2.x par `theme.contrast()` et vérifiés par `tests/test_theme.py` sur chaque surface.
+Calculés avec la formule WCAG 2.x par `theme.contrast()` et vérifiés par `tests/test_theme.py`.
 
-| Couple | Sombre | Clair | Seuil |
-|---|---|---|---|
-| Texte principal sur panneau | 14.5 : 1 | 17.6 : 1 | ≥ 7 |
-| Texte secondaire sur panneau | 8.4 : 1 | 8.7 : 1 | ≥ 4,5 |
-| Texte discret sur panneau | 6.5 : 1 | 6.3 : 1 | ≥ 4,5 |
-| Texte discret sur visualiseur | 7.3 : 1 | 5.2 : 1 | ≥ 4,5 |
-| Texte d'accent sur panneau | 9.2 : 1 | 6.6 : 1 | ≥ 4,5 |
-| Texte du bouton principal | 8.8 : 1 | 8.8 : 1 | ≥ 7 |
-| Contour des contrôles sur panneau | 4.6 : 1 | 4.6 : 1 | ≥ 3 |
-| Accent d'interface sur panneau | 8.1 : 1 | 4.9 : 1 | ≥ 3 |
-| Anneau de focus sur panneau | 9.4 : 1 | 4.9 : 1 | ≥ 3 |
-| Erreur sur panneau | 6.4 : 1 | 6.5 : 1 | ≥ 4,5 |
-| Réussite sur panneau | 8.3 : 1 | 6.1 : 1 | ≥ 4,5 |
+| Couple | Rapport | Seuil |
+|---|---|---|
+| Texte principal sur panneau | 16.4 : 1 | ≥ 7 |
+| Texte secondaire sur panneau | 10.7 : 1 | ≥ 4,5 |
+| Texte discret sur panneau | 7.5 : 1 | ≥ 4,5 |
+| Texte discret sur visualiseur | 8.2 : 1 | ≥ 4,5 |
+| Texte orange sur panneau | 8.7 : 1 | ≥ 4,5 |
+| Texte du bouton principal sur l'orange | 7.4 : 1 | ≥ 7 |
+| Texte violet sur panneau / sur fond de pastille | 8.5 : 1 / 6.7 : 1 | ≥ 4,5 |
+| Contour des contrôles sur panneau | 5.1 : 1 | ≥ 3 |
+| Orange d'interface sur panneau | 7.0 : 1 | ≥ 3 |
+| Anneau de focus sur panneau | 10.3 : 1 | ≥ 3 |
+| Erreur / réussite sur panneau | 7.5 : 1 / 10.6 : 1 | ≥ 4,5 |
+
+Le violet pur (`violet`, 4.3 : 1 sur panneau) ne sert qu'à des traits et des halos décoratifs, jamais à du texte.
 
 ## Typographie
 
-Une seule famille : **Inter** (licence OFL, fournie avec l'application, trois graisses : 400, 500, 600). Échelle fixe
-13 / 14 / 16 / 21 / 28 px ; rien en dessous de 13 px, chiffres de largeur fixe pour les compteurs. L'option « Taille du
-texte » du menu Réglages multiplie l'échelle (100, 115, 130 %) ; tailles de contrôles, largeurs de panneaux et marges suivent.
+Une seule famille : **Inter** (licence OFL, fournie avec l'application, graisses 400, 500, 600). Échelle fixe
+13 / 14 / 16 / 21 / 28 px ; rien en dessous de 13 px. « Taille du texte » (Paramètres) multiplie l'échelle (100, 115, 130 %) ;
+tailles de contrôles, largeurs de panneaux, marges et taille minimale de la fenêtre suivent. Le nom « ThreeRex » du logo est
+dessiné en italique gras, « Three » en blanc, « Rex » en dégradé orange.
 
-## Espacements, formes, tailles
+## Mascotte et assistant
 
-- Espacements : 4, 8, 12, 16, 24, 32, 48 px.
-- Rayons : 8 px (contrôles), 12 px (panneaux, notifications), pastilles pour les puces.
-- Contrôles de 44 px de haut, bouton principal de 52 px, icônes de 20 px (trait 1,75, Lucide).
-- Le visualiseur 3D occupe toute la zone centrale, sans coins arrondis : un rendu OpenGL ne se découpe pas proprement ;
-  les commandes flottantes (pastille d'information, barre d'outils, aide) sont posées par-dessus.
+- **Le T-Rex** est un dessin vectoriel original (polygones, `fx.mascot_shapes`), pas une image : il s'agrandit sans perte et
+  sert au logo, à l'état vide, à l'écran de calcul et à l'icône de l'application (`scripts/make_icon.py`).
+- **Le robot** (`fx.Robot`) est lui aussi vectoriel : il respire, cligne des yeux, et un clic sur lui affiche l'astuce
+  suivante. Les astuces sont de vrais conseils (`studio.TIPS`), et un test vérifie qu'elles tiennent dans leur bulle.
+- Aucun personnage ni œuvre existante n'est reproduit : la maquette d'inspiration (dragon, mascotte) n'a servi que de direction
+  artistique.
+
+## Effets et performance
+
+- **Une seule horloge** (`fx.Clock`, 30 images par seconde) pour tous les décors animés ; un widget ne s'y abonne que
+  tant qu'il est visible. Fenêtre masquée ou inactive : aucun coût.
+- **Les gestes passent avant le décor** : pendant un glisser dans le visualiseur, les particules se mettent en pause.
+- **Deux interrupteurs** : « Réduire les animations » (tout est immobile, y compris les transitions) et « Effets visuels »
+  (coupe halos, particules, robot animé, balayage et transition ; les réponses aux gestes restent). Windows qui désactive les
+  animations est respecté.
+- Les lueurs sont faites de traits translucides superposés, sans flou coûteux ; le fond est un pixmap mis en cache.
 
 ## Composants
 
 | Composant | Fichier | États traités |
 |---|---|---|
-| Bouton (principal, secondaire, discret) | `widgets.make_button` + QSS | repos, survol, appui, focus clavier, désactivé |
-| Bouton icône | `widgets.IconButton` | idem + coché (maillage, rotation auto) ; info-bulle = nom accessible |
-| Interrupteur | `widgets.Switch` | éteint/allumé animé, survol, focus, désactivé |
-| Contrôle segmenté | `widgets.Segmented` | actif animé, survol, appui, focus (flèches, Début, Fin), option désactivée avec explication |
-| Curseur | QSS `QSlider` | repos, survol, focus, désactivé |
-| Zone de dépôt | `widgets.DropZone` | vide, fichier au-dessus (glisser), image chargée avec bascule Originale / Détourée |
-| Notification | `widgets.Toast` | succès, avertissement, erreur ; pause au survol ; Échap pour fermer |
-| Panneau d'erreur | `widgets.ErrorPanel` | avec ou sans retour au modèle précédent |
-| Barre de progression | `widgets.IndeterminateBar` | active, statique si le mouvement est réduit |
-| Menu Réglages et aide | `widgets.SettingsPopover` | thème, taille du texte, animations, journal, licences |
-| États du visualiseur | `studio.ViewportFrame` | vide, calcul, résultat, erreur |
+| Panneau angulaire, repliable | `fx.Panel`, `fx.CollapsiblePanel` | accent violet / orange / mixte, replié, déplié |
+| Bouton lumineux | `fx.GlowButton` | principal (halo qui respire), secondaire, survol, appui, focus, désactivé |
+| Puce d'option | `fx.Chip` | cochée / décochée, focus, désactivée |
+| Onglets | `fx.TabBar` | actif (soulignement lumineux), survol, focus |
+| Séparateur redimensionnable | `fx.GripSplitter` | repos, survol, glissement |
+| Mise en page qui passe à la ligne | `fx.FlowLayout` | centrée ou non, hauteur selon la largeur |
+| Bulle d'assistant | `fx.Bubble` | texte sur deux lignes au plus, `is_elided()` |
+| Zone de dépôt | `widgets.DropZone` | vide (halo), fichier au-dessus, image chargée (scan, Originale / Détourée) |
+| Contrôle segmenté | `widgets.Segmented` | actif animé, survol, focus, option désactivée expliquée |
+| Interrupteur, curseur, listes | `widgets.Switch`, QSS | repos, survol, focus, désactivé |
+| Notification / erreur | `widgets.Toast`, `widgets.ErrorPanel` | succès, avertissement, erreur ; hauteur calculée pour sa largeur |
+| Pastille du calcul | `widgets.HardwareChip` | GPU (vert), processeur (ambre), nom coupé proprement |
+| Visualiseur | `viewport.ViewportFrame` | vide, calcul, résultat, erreur ; calques qui se replient sur une fenêtre étroite |
+| Pages | `pages.CreationsPage`, `pages.SettingsPage` | vide / remplie, fichier introuvable |
+
+## Responsive
+
+La fenêtre a une taille minimale de 1000 × 680 px (à 100 % du texte ; elle grandit avec l'échelle). En dessous de la taille
+confortable, l'interface se replie plutôt que de couper ou de superposer :
+
+- barre de gestes du visualiseur : icônes seules si elle ne tient pas ; sélecteur de variante au-dessus si les deux se touchent ;
+- pastille d'information : les derniers éléments (« · 1024 », « · TRELLIS.2 ») disparaissent avant de couper un mot ;
+- barre du haut : l'accroche du logo disparaît ; nom de la carte graphique coupé en dernier recours (info-bulle complète) ;
+- pied de page : les pastilles disparaissent une à une, la bulle garde deux lignes ;
+- panneau de gauche : défile verticalement, jamais horizontalement ; les puces d'options passent à la ligne ;
+- pages « Mes créations » et « Paramètres » : grille de cartes qui passe à la ligne.
+
+**Vérificateur automatique** : `python tests/scenarios/layout_audit.py` (lancé aussi par `pytest`) ouvre chaque page dans
+une quinzaine d'états (vide avec chaque moteur, réglages dépliés ou repliés, image chargée, calcul, erreur, résultat, variantes,
+aide, astuces du robot…), à 4 tailles de fenêtre et aux 3 tailles de texte, et signale tout texte coupé, libellé trop étroit, widget qui sort de son cadre, éléments qui se chevauchent, calque qui
+passe sous un autre, défilement horizontal, bulle tronquée. Il a trouvé plusieurs défauts réels pendant la conception.
 
 ## Accessibilité
 
-- **Clavier** : tout est atteignable à Tab ; l'anneau de focus (2 px, ≥ 3:1) n'apparaît qu'au clavier, jamais après un
-  clic. Raccourcis : Ctrl+O ouvrir, Ctrl+V coller, Ctrl+S enregistrer, Ctrl+Entrée générer, Ctrl+0 recentrer, Échap fermer
-  la notification. Aucun raccourci à touche simple (ils gênent la saisie et la dictée vocale).
+- **Clavier** : tout est atteignable à Tab ; l'anneau de focus (2 px, ≥ 3:1) n'apparaît qu'au clavier. Raccourcis :
+  Ctrl+O ouvrir, Ctrl+V coller, Ctrl+S enregistrer, Ctrl+Entrée générer, Ctrl+0 recentrer, Ctrl+1/2/3 onglets, F11 plein
+  écran du visualiseur, Échap quitter le plein écran ou fermer la notification. Aucun raccourci à touche simple.
 - **Lecteurs d'écran** : chaque contrôle a un nom ; les boutons icône prennent leur info-bulle comme nom ; le panneau
   d'erreur reçoit le focus sur « Réessayer ».
-- **Couleur** : aucune information portée par la seule couleur (texte « GPU » / « Processeur (lent) », position de
-  l'interrupteur, libellés des états).
-- **Mouvement** : toutes les animations (100 à 250 ms, courbe `cubic-bezier(0.23, 1, 0.32, 1)`) passent par `theme.Motion`.
-  Elles s'arrêtent si Windows désactive les animations ou si « Réduire les animations » est coché.
-- **Cibles** : 44 px minimum.
-- **Texte** : 130 % sans recouvrement (testé en rendu hors écran à 1000 px de large, taille minimale de la fenêtre).
+- **Couleur** : aucune information portée par la seule couleur (texte « GPU » / « Processeur (lent) », libellés des états).
+- **Mouvement** : voir « Effets et performance ».
+- **Cibles** : 44 px minimum pour les contrôles.
 
 ## Modifier le design
 
-1. Changer une couleur : éditer `design/tokens.json` **et** `theme.TOKENS` (le test `test_tokens_match_design_file`
-   vérifie qu'ils restent identiques), mettre à jour la variable Figma, relancer `pytest tests/test_theme.py` : les
-   contrastes sont revérifiés.
-2. Ajouter un composant : le placer dans `widgets.py`, lui donner tous ses états, lire ses couleurs dans
-   `theme.current()` (jamais de code couleur écrit en dur), le décrire dans le tableau ci-dessus.
-3. Ajouter une icône : insérer son contenu SVG Lucide dans `icons._INNER` ; le test des icônes vérifie qu'elle se dessine.
-4. Vérifier visuellement : `python tests/scenarios/studio_ui.py` enregistre des captures (vide, dépôt, calcul, résultat,
-   erreur, clair, texte à 130 %, menu) dans le dossier donné par `IMAGEVERS3D_TEST_OUT`.
+1. Changer une couleur : éditer `design/tokens.json` **et** `theme.TOKENS` (le test `test_tokens_match_design_file` vérifie
+   qu'ils restent identiques), puis relancer `pytest tests/test_theme.py` : les contrastes sont revérifiés.
+2. Ajouter un composant : le placer dans `fx.py` ou `widgets.py`, lui donner tous ses états, lire ses couleurs dans
+   `theme.current()` (jamais de code couleur écrit en dur), l'ajouter au tableau ci-dessus, puis relancer le vérificateur.
+3. Ajouter une icône : insérer son contenu SVG Lucide dans `icons._INNER`.
+4. Changer la mascotte ou l'icône : modifier `fx.mascot_shapes`, puis `python scripts/make_icon.py`.
+5. Régénérer les captures de la documentation : `python scripts/render_ui_screens.py docs/images`.
 
 ## Limites connues
 
-- Le visualiseur OpenGL ne peut pas être exécuté en rendu hors écran : ses couleurs de thème, la rotation automatique et
-  le fond sont écrits avec prudence (un échec de style n'empêche jamais l'affichage) mais n'ont pas été vus à l'écran.
-- La police est vérifiée comme présente et chargeable ; le rendu des graisses 500 et 600 dépend de la pile de polices de
-  Windows et n'a pas été vérifié sur Windows.
-- Le menu Réglages utilise une fenêtre flottante (Qt.Popup) : son comportement au clavier sous Windows est à confirmer.
+- Les captures et tous les contrôles automatiques sont faits en **rendu hors écran** (Linux, PySide6 6.9 et 6.12). Le
+  visualiseur OpenGL ne peut pas s'y exécuter : ses couleurs, la rotation automatique, les gestes à la souris et l'animation de la
+  transition n'ont pas été vus à l'écran.
+- La police est vérifiée comme présente et chargeable ; le rendu des graisses 500 et 600 sous Windows n'a pas été vérifié.
+- La barre de titre sombre sous Windows passe par une API du système (DWM) qui n'a pas pu être essayée ici ; en cas d'échec,
+  la barre de titre reste celle de Windows.
+- L'animation de reconstruction pendant le calcul est un décor, pas une mesure d'avancement.
+- Plein écran : F11 ou le bouton du visualiseur ; non essayé sur un vrai écran avec plusieurs moniteurs.

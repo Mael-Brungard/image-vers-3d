@@ -17,11 +17,3 @@ licences/
 # Sorties de génération et fichiers de travail
 *.log
 .requirements-*.tmp
-
-# Serveur de licences : secrets et données, jamais dans le dépôt
-.env
-server/.env
-*.db
-*.db-wal
-*.db-shm
-dev_signing.key

@@ -7,4 +7,3 @@
 *.png binary
 *.ico binary
 *.glb binary
-packaging/windows/EULA.fr.txt text eol=crlf

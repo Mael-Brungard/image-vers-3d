@@ -1,4 +1,4 @@
-"""Teste imagevers3d.triposg_worker de bout en bout avec de faux torch / huggingface_hub / triposg (pas de GPU requis)."""
+"""Teste threerex.triposg_worker de bout en bout avec de faux torch / huggingface_hub / triposg (pas de GPU requis)."""
 import os, subprocess, sys, tempfile, textwrap
 from pathlib import Path
 
@@ -9,8 +9,8 @@ def check(label, ok):
     print("OK   " if ok else "ECHEC", label)
     failed += (not ok)
 
-root = Path(tempfile.mkdtemp(prefix="i3d_worker_"))   # fait office de racine de l'application (IMAGEVERS3D_HOME)
-data = root / "data"                                   # et de dossier de données (IMAGEVERS3D_DATA)
+root = Path(tempfile.mkdtemp(prefix="i3d_worker_"))   # fait office de racine de l'application (THREEREX_HOME)
+data = root / "data"                                   # et de dossier de données (THREEREX_DATA)
 
 fakes = root / "fakes"
 (fakes / "torch").mkdir(parents=True)
@@ -74,8 +74,8 @@ Image.new("RGB", (64, 64), "white").save(root / "entree.png")
 
 def run(*args, **env):
     e = dict(os.environ, PYTHONPATH=os.pathsep.join([str(fakes), str(SRC)]), PYTHONIOENCODING="utf-8",
-             IMAGEVERS3D_HOME=str(root), IMAGEVERS3D_DATA=str(data), **env)
-    return subprocess.run([sys.executable, "-u", "-m", "imagevers3d.triposg_worker", *args], cwd=root, env=e,
+             THREEREX_HOME=str(root), THREEREX_DATA=str(data), **env)
+    return subprocess.run([sys.executable, "-u", "-m", "threerex.triposg_worker", *args], cwd=root, env=e,
                           capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 r = run("--image", str(root / "entree.png"), "--out-dir", str(root / "sortie"), "--steps", "4")

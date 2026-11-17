@@ -3,7 +3,7 @@ import sys, tempfile, textwrap
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from PIL import Image
-from imagevers3d.triposg_runner import TripoSGRunner, venv_python
+from threerex.triposg_runner import TripoSGRunner, venv_python
 
 failed = 0
 def check(label, ok):
