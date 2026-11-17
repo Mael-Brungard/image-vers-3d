@@ -16,6 +16,8 @@ from PySide6.QtWidgets import QApplication, QWidget  # noqa: E402
 from threerex import icons, theme, widgets  # noqa: E402
 from threerex.theme import TOKENS, Motion, Theme, build_qss, contrast  # noqa: E402
 
+# La vraie fonction, gardée avant que conftest.py ne la remplace pour chaque test (la CI Windows a les animations coupées).
+REAL_SYSTEM_MOTION = theme.system_prefers_reduced_motion
 REPO = Path(__file__).resolve().parents[1]
 MODES = ("dark",)
 SURFACES = ("bg-deep", "bg-app", "bg-viewport", "bg-panel", "bg-raised")
@@ -186,6 +188,62 @@ def test_motion_can_be_reduced_by_user_or_system():
     Motion.user_reduced = False
     Motion.system_reduced = True
     assert Motion.ms(200) == 0
+
+
+def test_system_motion_follows_the_windows_animation_setting(monkeypatch):
+    """« Afficher les animations dans Windows » coupé (SPI_GETCLIENTAREAANIMATION = 0) : mouvement réduit. Ailleurs : jamais."""
+    import ctypes
+    import types
+
+    def fake_windll(value: int):
+        def spi(action, param, ref, flags):
+            assert action == 0x1042
+            ref._obj.value = value
+            return 1
+
+        return types.SimpleNamespace(user32=types.SimpleNamespace(SystemParametersInfoW=spi))
+
+    with monkeypatch.context() as m:
+        m.setattr(theme.sys, "platform", "win32")
+        m.setattr(ctypes, "windll", fake_windll(0), raising=False)
+        assert REAL_SYSTEM_MOTION() is True
+        m.setattr(ctypes, "windll", fake_windll(1), raising=False)
+        assert REAL_SYSTEM_MOTION() is False
+        m.setattr(theme.sys, "platform", "linux")
+        assert REAL_SYSTEM_MOTION() is False
+    assert isinstance(REAL_SYSTEM_MOTION(), bool)  # sous Windows, l'appel réel ne plante pas
+
+
+def test_tests_do_not_depend_on_the_machine_animation_setting():
+    """Garde-fou de conftest.py : même si la machine coupe les animations, l'interface testée les garde."""
+    Motion.refresh(False, False)
+    assert Motion.enabled() and Motion.ambient()
+
+
+def test_gpu_name_is_shortened_but_the_full_name_stays_in_the_tooltip(app):
+    assert widgets.short_device("GPU : NVIDIA GeForce RTX 4070 Ti") == "GPU : RTX 4070 Ti"
+    assert widgets.short_device("GPU : NVIDIA RTX A6000") == "GPU : RTX A6000"
+    assert widgets.short_device("GPU : GeForce GTX 1080") == "GPU : GTX 1080"
+    assert widgets.short_device("GPU : Quadro P2000") == "GPU : Quadro P2000"
+    assert widgets.short_device("GPU : NVIDIA ") == "GPU : NVIDIA "  # rien ne reste : on garde le texte d'origine
+    assert widgets.short_device("Processeur (lent : aucun GPU CUDA détecté)") == "Processeur (lent : aucun GPU CUDA détecté)"
+    chip = widgets.HardwareChip()
+    chip.set_device("GPU : NVIDIA GeForce RTX 4070 Ti")
+    assert chip._text.text() == "GPU : RTX 4070 Ti"
+    assert chip.toolTip() == "GPU : NVIDIA GeForce RTX 4070 Ti"
+    assert "NVIDIA GeForce RTX 4070 Ti" in chip.accessibleName()
+
+
+def test_resize_watcher_reports_each_size_change(app, stage):
+    seen = []
+    box = QWidget(stage)
+    box.resize(100, 30)
+    watcher = widgets.ResizeWatcher(box, lambda: seen.append(box.width()))
+    box.show()
+    box.resize(140, 30)
+    box.resize(160, 30)
+    assert seen[-2:] == [140, 160] and watcher.parent() is box
+    box.deleteLater()
 
 
 def test_animate_jumps_when_motion_is_reduced(app):

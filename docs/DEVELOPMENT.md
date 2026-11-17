@@ -35,6 +35,9 @@ python -m pytest            # tout (environ 20 secondes) ; PyTorch n'est pas né
 ruff check .                # analyse statique
 ```
 
+- Les tests ignorent le réglage « Afficher les animations dans Windows » de la machine (`tests/conftest.py`, et une ligne au début
+  de chaque scénario d'interface) : les serveurs de CI le coupent. Un test qui a besoin du vrai réglage garde la fonction
+  `theme.system_prefers_reduced_motion` avant que `conftest.py` ne la remplace (voir `tests/test_theme.py`).
 - `tests/test_*.py` : tests unitaires (chemins, remplaçant de `torchmcubes`, rapport de licences, garde-fous de licence,
   contrôles du paquetage).
 - `tests/scenarios/*.py` : scénarios de bout en bout, lancés chacun dans un processus séparé par `tests/test_scenarios.py`

@@ -60,6 +60,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; nu
 - Nouvelle icône de l'application : la tête de T-Rex de la mascotte (`scripts/make_icon.py`).
 
 ### Corrigé
+- Mise en page sous Windows (trouvé par la CI) : le nom du GPU était coupé dans la barre du haut sur la fenêtre la plus petite,
+  et la pastille « Dernière génération » était rognée à 130 % de texte. La barre du haut affiche maintenant « GPU : RTX 4070 Ti »
+  (le nom complet reste dans l'infobulle et la page Paramètres) ; les pastilles du pied de page se règlent sur la largeur réelle
+  de leur colonne, mesurée après la mise en page, au lieu d'une part estimée de la fenêtre.
+- Tests : ils ne dépendent plus du réglage « Afficher les animations dans Windows » de la machine (les serveurs de CI le coupent,
+  l'application passait en mouvement réduit et trois contrôles échouaient). Le comportement de l'application, lui, n'a pas changé :
+  elle respecte toujours ce réglage. La lecture du réglage est maintenant testée avec un faux appel Windows.
 - Plantage `QListView.update() takes exactly one argument` avec PySide6 6.9 (le rafraîchissement du thème appelait `update()`
   sans argument sur les vues) ; test de non-régression ajouté.
 - Release : le rapport des licences est écrit à la racine du dépôt, et les journaux d'échec de l'installateur sont envoyables.

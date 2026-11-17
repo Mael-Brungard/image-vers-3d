@@ -55,7 +55,8 @@ d'eux-mêmes pendant un geste dans le visualiseur, et un réglage « Effets visu
 ```
 
 - **Barre du haut** : logo, trois onglets (Ctrl+1, Ctrl+2, Ctrl+3) et pastille du calcul (vert « GPU : … » ou ambre
-  « Processeur (lent) »). Sous 1160 px de large, l'accroche du logo disparaît pour laisser la place au nom de la carte.
+  « Processeur (lent) »). Sous 1160 px de large, l'accroche du logo disparaît pour laisser la place au nom de la carte ;
+  la marque est retirée du nom affiché (« GPU : RTX 4070 Ti »), le nom complet reste dans l'infobulle.
 - **Panneau de gauche** : « Importer ton image » (zone de dépôt avec halo animé ; à l'import, une ligne lumineuse balaie
   l'image), « Réglages avancés » repliable, bouton principal toujours visible en bas.
 - **Visualiseur** : quatre pages (vide, calcul, résultat, erreur). Résultat : gestes Faire pivoter / Déplacer / Zoom /
@@ -63,7 +64,8 @@ d'eux-mêmes pendant un geste dans le visualiseur, et un réglage « Effets visu
   sélecteur de variante. Une transition fait se dissoudre l'image d'origine sur le modèle (900 ms ; absente si les
   effets sont coupés).
 - **Pied de page** : pastilles, ligne d'état, barre de progression (pendant un calcul), bulle et robot. Les pastilles
-  disparaissent l'une après l'autre quand la place manque ; le robot n'est jamais coupé.
+  disparaissent l'une après l'autre quand la place manque (la place est la largeur mesurée de la colonne de gauche, pas une
+  estimation : les textes n'ont pas la même largeur d'une machine à l'autre) ; le robot n'est jamais coupé.
 - **Mes créations** : les fichiers réellement enregistrés (vignette = image de départ, moteur, taille, date). Retirer une
   carte **ne supprime jamais le fichier**. Un fichier déplacé est signalé « Fichier introuvable ».
 - **Paramètres** : taille du texte, animations, effets visuels, carte graphique, dossier des données, prompt ChatGPT,
@@ -205,6 +207,7 @@ passe sous un autre, défilement horizontal, bulle tronquée. Il a trouvé plusi
   visualiseur OpenGL ne peut pas s'y exécuter : ses couleurs, la rotation automatique, les gestes à la souris et l'animation de la
   transition n'ont pas été vus à l'écran.
 - La police est vérifiée comme présente et chargeable ; le rendu des graisses 500 et 600 sous Windows n'a pas été vérifié.
+  La CI Windows a toutefois déjà montré que les largeurs de texte y diffèrent de quelques pixels de celles de Linux : toute mise en page doit garder une vraie marge ou se régler sur la place mesurée.
 - La barre de titre sombre sous Windows passe par une API du système (DWM) qui n'a pas pu être essayée ici ; en cas d'échec,
   la barre de titre reste celle de Windows.
 - L'animation de reconstruction pendant le calcul est un décor, pas une mesure d'avancement.

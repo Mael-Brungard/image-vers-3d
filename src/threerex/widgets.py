@@ -16,6 +16,7 @@ from typing import Any
 from PIL import Image
 from PySide6.QtCore import (
     QEvent,
+    QObject,
     QPoint,
     QPointF,
     QPropertyAnimation,
@@ -545,8 +546,38 @@ class KeyCap(QLabel):
         self.setAccessibleName(text)
 
 
+class ResizeWatcher(QObject):
+    """Appelle `callback` chaque fois que `target` change de taille (sans sous-classer le widget). Sert à recaler un
+    élément sur la place réellement disponible, mesurée après la mise en page, et non sur une estimation."""
+
+    def __init__(self, target: QWidget, callback: Callable[[], None]) -> None:
+        super().__init__(target)
+        self._callback = callback
+        target.installEventFilter(self)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if event.type() == QEvent.Type.Resize:
+            self._callback()
+        return False
+
+
+_VENDOR_WORDS = ("NVIDIA ", "GeForce ")
+
+
+def short_device(text: str) -> str:
+    """« GPU : NVIDIA GeForce RTX 4070 Ti » devient « GPU : RTX 4070 Ti » : la marque est connue, et la barre du haut doit
+    rester lisible sur la plus petite fenêtre. Le nom complet reste dans l'infobulle et dans la page Paramètres."""
+    head, sep, name = text.partition(" : ")
+    if not sep or head != "GPU":
+        return text
+    for word in _VENDOR_WORDS:
+        if name.startswith(word):
+            name = name[len(word):]
+    return f"GPU : {name}" if name else text
+
+
 class HardwareChip(QFrame):
-    """Pastille d'état du calcul : « GPU : NVIDIA ... » avec un point vert lumineux, ou « Processeur (lent) » avec un point
+    """Pastille d'état du calcul : « GPU : RTX ... » avec un point vert lumineux, ou « Processeur (lent) » avec un point
     ambre (avertissement). Le point n'est jamais la seule information : le texte dit la même chose."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -569,7 +600,7 @@ class HardwareChip(QFrame):
     def set_device(self, text: str) -> None:
         self._full = text
         self._gpu = text.startswith("GPU")
-        self._text.setText(text)  # ElidedLabel : se coupe seul quand la barre manque de place
+        self._text.setText(short_device(text))  # ElidedLabel : se coupe seul si la barre manque quand même de place
         self.setToolTip(text)
         self.setAccessibleName(f"Calcul : {text}")
         self.setVisible(bool(text))

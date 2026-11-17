@@ -93,6 +93,7 @@ from .widgets import (
     IconButton,
     IndeterminateBar,
     KeyCap,
+    ResizeWatcher,
     Segmented,
     make_button,
     qimage_to_pil,
@@ -829,6 +830,9 @@ class MainWindow(QMainWindow):
         self.status = ElidedLabel()
         self.status.setProperty("role", "secondary")
         left.addWidget(self.status)
+        self._fitting_footer = False
+        # la ligne d'état a la largeur de la colonne de gauche : c'est elle qui dit la place réelle des pastilles
+        self._status_watch = ResizeWatcher(self.status, self._fit_footer)
         h.addLayout(left, 2)
         self.progress = IndeterminateBar()
         self.progress.setFixedWidth(theme.current().px(140))
@@ -1223,19 +1227,27 @@ class MainWindow(QMainWindow):
         self._fit_footer()
 
     def _fit_footer(self) -> None:
-        """Sur une fenêtre étroite, les pastilles disparaissent l'une après l'autre plutôt que d'être coupées."""
-        if not hasattr(self, "pill_image"):
+        """Sur une fenêtre étroite, les pastilles disparaissent l'une après l'autre plutôt que d'être coupées.
+
+        La place est la largeur mesurée de la colonne de gauche (celle de la ligne d'état), pas une part estimée de la fenêtre :
+        la largeur des textes change d'une machine et d'une police à l'autre, et une estimation trop large coupait la dernière
+        pastille sous Windows."""
+        if not hasattr(self, "pill_image") or self._fitting_footer:
             return
-        t = theme.current()
-        pills = [p for p in (self.pill_image, self.pill_engine, self.pill_time) if p.text()]
-        room = int(self._footer.width() * 0.6) - t.px(60)
-        used = 0
-        for pill in pills:
-            need = pill.sizeHint().width() + t.px(8)
-            fits = used + need <= room
-            pill.setVisible(fits)
-            used += need if fits else 0
-        self.pills.setVisible(any(p.text() for p in pills) and used > 0)
+        self._fitting_footer = True
+        try:
+            pills = [p for p in (self.pill_image, self.pill_engine, self.pill_time) if p.text()]
+            room = self.status.width()
+            used = 0
+            for pill in pills:
+                need = pill.sizeHint().width() + (self.pills.layout().spacing() if used else 0)
+                fits = used + need <= room
+                pill.setVisible(fits)
+                if fits:
+                    used += need
+            self.pills.setVisible(used > 0)
+        finally:
+            self._fitting_footer = False
 
     def _assistant_text(self) -> str:
         if self._tip_override:

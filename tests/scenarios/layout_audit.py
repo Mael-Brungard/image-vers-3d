@@ -40,6 +40,7 @@ from threerex.printing import HEIGHT_RANGE_MM, PrintOptions
 from threerex.widgets import ElidedLabel
 
 fx.Clock.require_active = False
+theme.system_prefers_reduced_motion = lambda: False  # indépendant du réglage « animations » de Windows (serveurs de CI)
 
 SIZES = ((1000, 680), (1180, 760), (1360, 880), (1920, 1040))
 SCALES = (1.0, 1.15, 1.3)

@@ -30,6 +30,9 @@ def new_settings():
 from threerex import printing, studio, theme
 from threerex.theme import Motion
 
+# Un serveur Windows a souvent « Afficher les animations » coupé : le scénario ne doit pas dépendre du réglage de la machine.
+theme.system_prefers_reduced_motion = lambda: False
+
 
 class StubPrintDialog:
     """Remplace la fenêtre « Impression 3D » (elle bloquerait le test) : mêmes arguments, réponse programmée."""
