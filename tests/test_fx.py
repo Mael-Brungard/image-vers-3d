@@ -49,6 +49,43 @@ def test_clock_is_static_when_effects_are_off(app):
     assert fx.Clock.t() == 0.0 and fx.Clock.t(ambient=False) == 0.0
 
 
+def test_wrap_elide_never_cuts_a_text_that_fits(app):
+    """Une astuce qui tient en deux lignes n'est jamais raccourcie par « … », à aucune largeur ni taille de texte.
+    (horizontalAdvance arrondit à l'entier alors qu'elidedText compare des largeurs décimales : une ligne à moins d'un pixel de
+    la largeur disponible était coupée à tort, ce qui a fait échouer l'audit de mise en page sur la CI Linux.)"""
+    from threerex.studio import TIPS
+
+    try:
+        for scale in (1.0, 1.15, 1.3):
+            theme.apply_theme(app, "dark", scale)
+            fm = QFontMetrics(theme.make_font(theme.font_family(), theme.current(), 13, 500))
+            for tip in TIPS:
+                words = tip.split()
+                for width in range(120, 1100):
+                    lines, line = [], ""
+                    for word in words:
+                        trial = f"{line} {word}".strip()
+                        if fm.horizontalAdvance(trial) <= width:
+                            line = trial
+                        else:
+                            lines.append(line) if line else None
+                            line = word
+                    lines.append(line)
+                    if len(lines) <= fx.Bubble.LINES and all(fm.horizontalAdvance(x) <= width for x in lines):
+                        assert fx.wrap_elide(tip, fm, width, fx.Bubble.LINES) == lines, (scale, width, tip)
+    finally:
+        theme.apply_theme(app, "dark", 1.0)
+
+
+def test_wrap_elide_still_elides_what_does_not_fit(app):
+    fm = QFontMetrics(theme.make_font(theme.font_family(), theme.current(), 13, 500))
+    text = "Un texte beaucoup trop long pour tenir dans deux lignes aussi étroites que celles-ci, vraiment."
+    lines = fx.wrap_elide(text, fm, 120, 2)
+    assert len(lines) == 2 and lines[-1].endswith("…") and all(fm.horizontalAdvance(x) <= 120 for x in lines)
+    assert fx.wrap_elide("Mot", fm, 400, 2) == ["Mot"]
+    assert fx.wrap_elide("Supercalifragilisticexpialidocious", fm, 40, 2)[0].endswith("…")
+
+
 def test_animated_widget_subscribes_only_while_visible(app):
     widget = fx.Animated()
     widget.resize(40, 40)

@@ -64,6 +64,11 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; nu
   et la pastille « Dernière génération » était rognée à 130 % de texte. La barre du haut affiche maintenant « GPU : RTX 4070 Ti »
   (le nom complet reste dans l'infobulle et la page Paramètres) ; les pastilles du pied de page se règlent sur la largeur réelle
   de leur colonne, mesurée après la mise en page, au lieu d'une part estimée de la fenêtre.
+- Bulle du robot : une astuce qui tenait en deux lignes pouvait être coupée par « … » quand une ligne tombait à moins d'un pixel de
+  la largeur disponible (la mesure du texte arrondissait, la coupe non). Constaté sur la CI Linux ; test de non-régression sur toutes
+  les astuces, trois tailles de texte et mille largeurs. Les pastilles du pied de page ne forcent plus la largeur de leur colonne :
+  elles n'ont plus à l'élargir au détriment de la bulle, et leur affichage ne dépend plus de l'historique (une pastille qui n'y
+  tient pas est masquée, comme prévu).
 - Tests : ils ne dépendent plus du réglage « Afficher les animations dans Windows » de la machine (les serveurs de CI le coupent,
   l'application passait en mouvement réduit et trois contrôles échouaient). Le comportement de l'application, lui, n'a pas changé :
   elle respecte toujours ce réglage. La lecture du réglage est maintenant testée avec un faux appel Windows.

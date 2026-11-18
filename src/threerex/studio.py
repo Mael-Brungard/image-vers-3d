@@ -817,6 +817,9 @@ class MainWindow(QMainWindow):
         left.setSpacing(4)
         self.pills = QWidget()
         self.pills.setObjectName("transparent")
+        # Les pastilles ne dictent pas la largeur de la colonne (sinon, une fois toutes affichées, elles la gardent large et
+        # rognent la bulle du robot) : la colonne a sa part de la barre, et _fit_footer retire les pastilles qui n'y tiennent pas.
+        self.pills.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         pl = QHBoxLayout(self.pills)
         pl.setContentsMargins(0, 0, 0, 0)
         pl.setSpacing(8)

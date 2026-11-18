@@ -1308,7 +1308,10 @@ def wrap_elide(text: str, fm: QFontMetrics, width: int, max_lines: int) -> list[
     if len(lines) > max_lines:
         tail = " ".join(lines[max_lines - 1:])
         lines = [*lines[: max_lines - 1], fm.elidedText(tail, Qt.TextElideMode.ElideRight, width)]
-    return [fm.elidedText(line, Qt.TextElideMode.ElideRight, width) for line in lines]
+    # Une ligne que horizontalAdvance() (arrondi à l'entier) juge assez courte n'est jamais raccourcie : elidedText() compare
+    # des largeurs décimales et coupait « à tort » une ligne qui tombait à moins d'un pixel de la largeur disponible
+    # (échec constaté sur la CI Linux, selon la machine et la police).
+    return [line if fm.horizontalAdvance(line) <= width else fm.elidedText(line, Qt.TextElideMode.ElideRight, width) for line in lines]
 
 
 class Bubble(QWidget):

@@ -64,8 +64,9 @@ d'eux-mêmes pendant un geste dans le visualiseur, et un réglage « Effets visu
   sélecteur de variante. Une transition fait se dissoudre l'image d'origine sur le modèle (900 ms ; absente si les
   effets sont coupés).
 - **Pied de page** : pastilles, ligne d'état, barre de progression (pendant un calcul), bulle et robot. Les pastilles
-  disparaissent l'une après l'autre quand la place manque (la place est la largeur mesurée de la colonne de gauche, pas une
-  estimation : les textes n'ont pas la même largeur d'une machine à l'autre) ; le robot n'est jamais coupé.
+  disparaissent l'une après l'autre quand la place manque (la place est la largeur mesurée de la colonne de gauche, qui n'est
+  pas élargie par les pastilles : les textes n'ont pas la même largeur d'une machine à l'autre ; sur une fenêtre de 1180 px, « Dernière
+  génération » n'a plus la place et disparaît) ; le robot n'est jamais coupé.
 - **Mes créations** : les fichiers réellement enregistrés (vignette = image de départ, moteur, taille, date). Retirer une
   carte **ne supprime jamais le fichier**. Un fichier déplacé est signalé « Fichier introuvable ».
 - **Paramètres** : taille du texte, animations, effets visuels, carte graphique, dossier des données, prompt ChatGPT,
